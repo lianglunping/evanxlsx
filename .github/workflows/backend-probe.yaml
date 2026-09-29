@@ -1,0 +1,62 @@
+name: Backend API probe
+on:
+  push:
+    branches: ['feature/0.2.0-backends']
+    paths: ['.github/workflows/backend-probe.yaml']
+permissions:
+  contents: read
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      NOT_CRAN: 'true'
+      DUCKPLYR_FALLBACK_COLLECT: '0'
+      DUCKPLYR_FALLBACK_AUTO: '0'
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: r-lib/actions/setup-r@v2
+        with:
+          r-version: release
+          use-public-rspm: true
+      - name: Install optional backends
+        shell: Rscript {0}
+        run: |
+          options(repos = c(CRAN = 'https://cloud.r-project.org', multiverse = 'https://community.r-multiverse.org'))
+          install.packages(c('duckplyr', 'polars'), Ncpus = 2)
+          stopifnot(requireNamespace('duckplyr'), requireNamespace('polars'))
+      - name: Probe documented API with synthetic data
+        shell: Rscript {0}
+        run: |
+          dir.create('probe', showWarnings = FALSE)
+          sink('probe/api.txt', split = TRUE)
+          print(sessionInfo())
+          library(polars)
+          pl <- polars::pl
+          p <- pl$DataFrame(id = c('0001', NA_character_), value = 1:2)
+          print(class(p)); print(class(p$lazy())); print(p$shape); print(p$height); print(p$width)
+          print(p$schema); print(p$lazy()$collect_schema()); print(formals(getS3method('as.data.frame', 'polars_data_frame')))
+          types <- list(pl$Int64, pl$UInt64, pl$UInt32, pl$Decimal(30, 8), pl$Datetime('ns'), pl$Datetime('us', 'UTC'), pl$Time, pl$Duration('ns'), pl$List(pl$Int32), pl$Struct(list(x = pl$String)), pl$Binary, pl$Null)
+          for (d in types) {
+            print(d); print(class(d)); print(try(as.character(d))); print(try(d$is_nested())); print(try(d$base_type())); print(try(d$time_unit)); print(try(d$time_zone))
+          }
+          z <- pl$DataFrame(id = c('999999999999999', '1000000000000001', NA_character_), dec = c('12345678901234567890.12345678', '0.00000001', NA_character_))$with_columns(pl$col('id')$cast(pl$Int64), pl$col('dec')$cast(pl$Decimal(30,8)))
+          print(as.data.frame(z, int64 = 'character', decimal = 'character'))
+          print(z$lazy()$head(2)$collect(engine = 'in-memory'))
+          dt <- pl$DataFrame(v = c('2026-09-29 01:02:03.123456789', NA_character_))$with_columns(pl$col('v')$str$to_datetime(time_unit = 'ns'))
+          print(dt$with_columns(pl$col('v')$cast(pl$String)))
+          print(as.data.frame(dt$with_columns(pl$col('v')$cast(pl$String))))
+          q <- duckplyr::as_duckplyr_df(data.frame(id = 1:5, text = c('a','b','c','d','e')), prudence = 'stingy')
+          print(class(q)); print(names(q)); print(try(nrow(q)))
+          limited <- utils::head(q, 3L)
+          print(class(limited)); print(dplyr::collect(limited)); print(try(nrow(q)))
+          print(sessionInfo())
+          sink()
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: backend-api-probe
+          path: probe/
+          retention-days: 14
