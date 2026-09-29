@@ -14,7 +14,8 @@ test_that("NA is a value-less cell, while literal NA text remains text", {
   ws <- xml_part(path, "xl/worksheets/sheet1.xml")
   for (address in c("A2", "B2", "B3", "C2", "D2", "D4")) {
     cell <- xml_cell(ws, address)
-    expect_length(xml2::xml_find_all(cell, "v|is|f"), 0L, info = address)
+    expect_identical(length(xml2::xml_find_all(cell, "v|is|f")), 0L,
+                     label = paste0("value nodes in missing cell ", address))
   }
   expect_identical(xml2::xml_text(xml2::xml_find_first(xml_cell(ws, "A3"), "is/t")), "NA")
   expect_length(xml2::xml_find_all(ws, ".//c[@t='e']"), 0L)
