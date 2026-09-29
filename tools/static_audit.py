@@ -53,7 +53,7 @@ def lexical_balance(text: str) -> str:
 def main() -> None:
     errors, checks = [], {}
     files = [p for p in sorted(ROOT.rglob('*')) if p.is_file()
-             and not any(x == '.git' or x.startswith('local-') for x in p.parts)]
+             and not any(x == '.git' or x.startswith(('local-', 'portable-')) for x in p.parts)]
     texts = {}
     for path in files:
         if path.name in ('static_audit.json', 'source_sha256.tsv'):
@@ -121,8 +121,11 @@ def main() -> None:
         import yaml
         workflow = yaml.load(texts['.github/workflows/R-CMD-check.yaml'], Loader=yaml.BaseLoader)
         assert {'push', 'pull_request', 'workflow_dispatch'} <= set(workflow['on'])
-        assert workflow['jobs']['check']['strategy']['matrix']['os'] == [
-            'ubuntu-latest', 'macos-latest', 'windows-latest']
+        configs = workflow['jobs']['check']['strategy']['matrix']['config']
+        assert len(configs) == 6
+        assert {c['label'] for c in configs} == {
+            'linux-release', 'windows-release', 'macos-arm-release',
+            'macos-intel-release', 'linux-oldrel', 'linux-minimum'}
         checks['workflow_yaml'] = 'Parsed with PyYAML ' + yaml.__version__ + '; NOT executed'
     except ImportError:
         checks['workflow_yaml'] = 'NOT_RUN: PyYAML unavailable'
@@ -134,7 +137,7 @@ def main() -> None:
         'R_runtime_found_on_PATH': shutil.which('R'),
         'Rscript_found_on_PATH': shutil.which('Rscript'),
         'native_R_parse': 'NOT_RUN', 'R_CMD_check': 'NOT_RUN',
-        'testthat': 'NOT_RUN', 'XLSX_export': 'NOT_RUN', 'GitHub_publication': 'NOT_RUN',
+        'testthat': 'NOT_RUN', 'XLSX_export': 'NOT_RUN', 'GitHub_publication': 'NOT_CHECKED_BY_STATIC_AUDIT',
         'limitations': 'This report cannot establish R syntax correctness, installability, runtime behavior, or Excel rendering.',
         'source_sha256_examined': {name: hashlib.sha256(text.encode('utf-8')).hexdigest()
                                    for name, text in texts.items()}

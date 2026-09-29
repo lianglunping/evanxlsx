@@ -1,0 +1,277 @@
+{
+  "version": "0.1.1",
+  "tested_commit": "0eae3af99f5ce09505fb12079b2b2dac15880e63",
+  "workflow_run_id": 36544155717,
+  "workflow_url": "https://github.com/lianglunping/evanxlsx/actions/runs/36544155717",
+  "environments": [
+    {
+      "label": "macos_arm",
+      "R": "4.6.1",
+      "platform": "aarch64-apple-darwin23",
+      "os": "macOS Tahoe 26.6.2",
+      "R_CMD_check": "OK",
+      "unit_fail": 0,
+      "unit_warn": 0,
+      "unit_skip": 0,
+      "unit_pass": 231,
+      "installation_methods": {
+        "source": {
+          "status": "PASS",
+          "grouped_assertions": 46
+        },
+        "tar": {
+          "status": "PASS",
+          "grouped_assertions": 96
+        },
+        "github": {
+          "status": "PASS",
+          "grouped_assertions": 46
+        }
+      },
+      "dependencies": {
+        "openxlsx2": "1.29",
+        "testthat": "3.3.2",
+        "xml2": "1.6.0",
+        "tibble": "3.3.1"
+      },
+      "medium_observation": {
+        "rows": "10000",
+        "columns": "6",
+        "elapsed_seconds": "0.185",
+        "output_bytes": "331104"
+      },
+      "artifact_id": 11021707675,
+      "artifact_sha256": "9af535fca6a40bebf2f02351cc3d11a357183a57b0599b251527e8355bde04cc",
+      "built_tar_sha256": "90f3c35e0dc78f3d8ff4312c98de6b3116d7350763dfbc3aaf2d5e2fec6903f1"
+    },
+    {
+      "label": "linux_release",
+      "R": "4.6.1",
+      "platform": "x86_64-pc-linux-gnu",
+      "os": "Ubuntu 24.04.5 LTS",
+      "R_CMD_check": "OK",
+      "unit_fail": 0,
+      "unit_warn": 0,
+      "unit_skip": 0,
+      "unit_pass": 231,
+      "installation_methods": {
+        "source": {
+          "status": "PASS",
+          "grouped_assertions": 46
+        },
+        "tar": {
+          "status": "PASS",
+          "grouped_assertions": 96
+        },
+        "github": {
+          "status": "PASS",
+          "grouped_assertions": 46
+        }
+      },
+      "dependencies": {
+        "openxlsx2": "1.29",
+        "testthat": "3.3.2",
+        "xml2": "1.6.0",
+        "tibble": "3.3.1"
+      },
+      "medium_observation": {
+        "rows": "10000",
+        "columns": "6",
+        "elapsed_seconds": "0.25",
+        "output_bytes": "331103"
+      },
+      "artifact_id": 11021553151,
+      "artifact_sha256": "394cec3d275134c71bd107f203b1d021bfe867495c32d18432e54d9d701dc2dc",
+      "built_tar_sha256": "fd5970a95407d401b759745c50517b6c0246707bb94ac4e85089f3d0b57fdd16"
+    },
+    {
+      "label": "windows_release",
+      "R": "4.6.1",
+      "platform": "x86_64-w64-mingw32/x64",
+      "os": "Windows Server 2022 x64 (build 26100)",
+      "R_CMD_check": "OK",
+      "unit_fail": 0,
+      "unit_warn": 0,
+      "unit_skip": 0,
+      "unit_pass": 231,
+      "installation_methods": {
+        "source": {
+          "status": "PASS",
+          "grouped_assertions": 46
+        },
+        "tar": {
+          "status": "PASS",
+          "grouped_assertions": 96
+        },
+        "github": {
+          "status": "PASS",
+          "grouped_assertions": 46
+        }
+      },
+      "dependencies": {
+        "openxlsx2": "1.29",
+        "testthat": "3.3.2",
+        "xml2": "1.6.0",
+        "tibble": "3.3.1"
+      },
+      "medium_observation": {
+        "rows": "10000",
+        "columns": "6",
+        "elapsed_seconds": "0.400000000000002",
+        "output_bytes": "331104"
+      },
+      "artifact_id": 11021578121,
+      "artifact_sha256": "2a32a494d9017e4fad6b6f8cf6c02c3a97de444e89d2524d37e09161292af7b3",
+      "built_tar_sha256": "6ed21ce062b7762980f6be3a947d3606e9668a0c93823dfd38324f50572013d8"
+    },
+    {
+      "label": "linux_oldrel",
+      "R": "4.5.3",
+      "platform": "x86_64-pc-linux-gnu",
+      "os": "Ubuntu 24.04.5 LTS",
+      "R_CMD_check": "OK",
+      "unit_fail": 0,
+      "unit_warn": 0,
+      "unit_skip": 0,
+      "unit_pass": 231,
+      "installation_methods": {
+        "source": {
+          "status": "PASS",
+          "grouped_assertions": 46
+        },
+        "tar": {
+          "status": "PASS",
+          "grouped_assertions": 96
+        },
+        "github": {
+          "status": "PASS",
+          "grouped_assertions": 46
+        }
+      },
+      "dependencies": {
+        "openxlsx2": "1.29",
+        "testthat": "3.3.2",
+        "xml2": "1.6.0",
+        "tibble": "3.3.1"
+      },
+      "medium_observation": {
+        "rows": "10000",
+        "columns": "6",
+        "elapsed_seconds": "0.266",
+        "output_bytes": "331103"
+      },
+      "artifact_id": 11021777728,
+      "artifact_sha256": "1cb2957fa7eb412943629fcf194326f8f54c01ccaff8c53ea87efefef0e4919b",
+      "built_tar_sha256": "a04db4426236bd81f0d50c03d7f67027883a9c3cc9190441f7f38b6098f286d6"
+    },
+    {
+      "label": "macos_intel",
+      "R": "4.6.1",
+      "platform": "x86_64-apple-darwin20",
+      "os": "macOS Sequoia 15.7.9",
+      "R_CMD_check": "OK",
+      "unit_fail": 0,
+      "unit_warn": 0,
+      "unit_skip": 0,
+      "unit_pass": 231,
+      "installation_methods": {
+        "source": {
+          "status": "PASS",
+          "grouped_assertions": 46
+        },
+        "tar": {
+          "status": "PASS",
+          "grouped_assertions": 96
+        },
+        "github": {
+          "status": "PASS",
+          "grouped_assertions": 46
+        }
+      },
+      "dependencies": {
+        "openxlsx2": "1.29",
+        "testthat": "3.3.2",
+        "xml2": "1.6.0",
+        "tibble": "3.3.1"
+      },
+      "medium_observation": {
+        "rows": "10000",
+        "columns": "6",
+        "elapsed_seconds": "0.579000000000001",
+        "output_bytes": "331103"
+      },
+      "artifact_id": 11022282004,
+      "artifact_sha256": "4f672193fce0f7d97e5d6aeee86ec87e303c1644ad1a6ef6489bd34a733077a3",
+      "built_tar_sha256": "40f162ab555f49cb68c0c08e37e0d8e24c1c97beb0ea5900a10ff9844e414046"
+    },
+    {
+      "label": "linux_minimum",
+      "R": "4.1.3",
+      "platform": "x86_64-pc-linux-gnu (64-bit)",
+      "os": "Ubuntu 22.04.5 LTS",
+      "R_CMD_check": "OK",
+      "unit_fail": 0,
+      "unit_warn": 0,
+      "unit_skip": 0,
+      "unit_pass": 231,
+      "installation_methods": {
+        "source": {
+          "status": "PASS",
+          "grouped_assertions": 46
+        },
+        "tar": {
+          "status": "PASS",
+          "grouped_assertions": 96
+        },
+        "github": {
+          "status": "PASS",
+          "grouped_assertions": 46
+        }
+      },
+      "dependencies": {
+        "openxlsx2": "1.29",
+        "testthat": "3.3.2",
+        "xml2": "1.6.0",
+        "tibble": "3.3.1"
+      },
+      "medium_observation": {
+        "rows": "10000",
+        "columns": "6",
+        "elapsed_seconds": "0.257",
+        "output_bytes": "331104"
+      },
+      "artifact_id": 11021437502,
+      "artifact_sha256": "572949881323023dc1d7e5a1b3a5869898a741ef1a8127a9d47867756ba2c2d2",
+      "built_tar_sha256": "78e46b1f482ed1e7997a5e7e10402cc81239c4b3292c5caee91218d5e392fb0c"
+    }
+  ],
+  "not_claimed": [
+    "native Excel visual validation",
+    "every R/OS/dependency version",
+    "fully offline dependency installation"
+  ],
+  "archive_scope": "Each runner built and installed a source tarball from the same commit. The delivered tarball is the successful macOS ARM build; its R/test source bytes are checked against the validated source.",
+  "environment_count": 6,
+  "installation_checks_passed": 18,
+  "all_six_complete": true,
+  "synthetic_data": {
+    "rows": 240,
+    "columns": 11,
+    "synthetic_categories": 83,
+    "style_cases": 12,
+    "medium_rows": 10000,
+    "medium_columns": 6,
+    "random_sampling": false
+  },
+  "independent_xml_check": {
+    "data_cells_checked": 2640,
+    "missing_cells_without_value_or_string_nodes": 179,
+    "sheet_names": 3,
+    "font_alignment_combinations_checked": 12,
+    "large_table_ID_cells_checked": 20000,
+    "status": "PASS",
+    "python": "3.13.5",
+    "demo_sha256": "e25a00bb76c9797a79a2fdcff77de10780cd1f1464e03db0bea404f7dd346511",
+    "scope": "Independent read-only XML/data check, not native Excel visual validation."
+  }
+}

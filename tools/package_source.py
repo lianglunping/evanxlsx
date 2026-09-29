@@ -27,7 +27,7 @@ def main():
     output.mkdir(parents=True, exist_ok=True)
     files = [p for p in sorted(ROOT.rglob('*')) if p.is_file()
              and '.git' not in p.relative_to(ROOT).parts
-             and not any(part.startswith('local-') for part in p.relative_to(ROOT).parts)
+             and not any(part.startswith(('local-', 'portable-')) for part in p.relative_to(ROOT).parts)
              and '__pycache__' not in p.parts and p.name != 'source_sha256.tsv']
     manifest = ROOT / 'validation/source_sha256.tsv'
     manifest.write_text('sha256\tpath\n' + ''.join(
@@ -65,7 +65,7 @@ def main():
         for p in package_files:
             assert tar.extractfile('evanxlsx/' + p.relative_to(ROOT).as_posix()).read() == p.read_bytes()
     report = {'version': version, 'R_CMD_build': 'NOT_RUN', 'R_CMD_check': 'NOT_RUN',
-              'testthat': 'NOT_RUN', 'GitHub_publication': 'NOT_RUN',
+              'testthat': 'NOT_RUN', 'GitHub_publication': 'NOT_CHECKED_BY_ARCHIVE_TOOL',
               'archive_validation': 'CRC/content comparison completed; this is not an R package test',
               'files': [{'name': p.name, 'size_bytes': p.stat().st_size, 'sha256': digest(p)}
                         for p in (archive, full_zip)],
