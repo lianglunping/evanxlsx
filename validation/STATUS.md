@@ -1,58 +1,52 @@
-# Source candidate status — 2026-09-29
+# 验收状态 / Validation status
 
-Version: 0.1.0. Source publication is not a claim of runtime validation.
+Version: 0.1.1. The source remains a candidate until its own CI run is verified.
+源码仍按候选版处理，直到核对本提交对应的实际运行结果。
 
-## Repository
+Repository: https://github.com/lianglunping/evanxlsx (private / 私有)
+Workflow results: https://github.com/lianglunping/evanxlsx/actions
 
-- Repository: https://github.com/lianglunping/evanxlsx
-- Visibility verified before upload: PRIVATE.
-- Default branch: main; connected account has push permission.
-- The initial README commit is retained as the parent of the source upload.
-- Only package code, documentation and synthetic tests are included.
-- No research data, screenshots, credentials or font files are included.
-- No stable Release or version tag is created by this upload.
+## Historical failure / 历史失败
 
-## Validation scope
+The first 0.1.0 source upload was commit
+b389cdd8a35786ff53beb91a9b709365b9611321, run 36541029450.
+Linux/macOS examples and tests failed in the XML-validation regular expression;
+Windows build failed while copying an open build log. These are not passing results.
+0.1.0 首轮检查失败，不能作为已经验收的安装包使用。
 
-The original archives were checked against their delivery SHA-256 values:
+0.1.1 fixes these issues and expands the runtime/installation test matrix.
+The public function and defaults are preserved. CI success must be read from
+actual logs; the existence of test code is not a passing result.
 
-- evanxlsx_source_0.1.0.zip: 9e6ea1bac4f21a3275d12500ef786dc1988845884a79c98d41600bfdce622864
-- evanxlsx_0.1.0.tar.gz: cd30db6f4ebacb4e8ce4203a55b58c03806fac17831fbe0aaa6e66d18755a41b
+## Test scope / 验收范围
 
-R and Rscript are not available in the upload environment. No local native R
-parse, R CMD INSTALL, R CMD build/check, testthat or Excel visual check is claimed.
-The environment_probe.txt file records the earlier source-delivery environment.
-static_audit.json and source_sha256.tsv describe the pre-commit source snapshot;
-static checks are not R execution and do not query live publication/CI state.
+Six requested environments: Linux release, Windows release, macOS arm64 release,
+macOS Intel release, Linux oldrel-1, Linux R 4.1.3. Three installation routes per
+environment: source folder, local source archive, private GitHub at the exact SHA.
+目标为六个环境、每个环境三种安装方式；未完成或失败的组合不得计为通过。
 
-The R functions and tests in this upload are unchanged from the supplied archive.
-README, HTML documentation, NEWS and this status note were updated to reflect
-repository creation and provide private-repository installation instructions.
+Each installed copy is loaded in a fresh process from a separately verified
+library path. Synthetic inputs contain 240 rows × 11 columns and 83 test categories.
+A 10,000-row × 6-column case and 12 font/alignment cases supplement the unit tests.
+每个安装副本在独立包库、新 R 进程中加载；所有数据均为合成数据。
 
-## Runtime acceptance
-
-Inspect the workflow run for the exact code commit:
-https://github.com/lianglunping/evanxlsx/actions
-
-The workflow requests checks on Linux, macOS and Windows. Its existence alone
-is not evidence of a passing run. Logs and built archives are retained as
-workflow artifacts when the workflow reaches that step. Any queued, blocked,
-failed or unobserved run must not be represented as PASS.
-
-To check locally, install development dependencies explicitly in R:
-
-```r
-install.packages(c("openxlsx2", "testthat", "xml2", "tibble"))
-```
-
-Then run from the package root:
+Reproduction / 复现:
 
 ```sh
 Rscript tools/check.R
+Rscript tools/install_check.R
 ```
 
-The script records dependency versions, source MD5, commands and logs in a fresh
-validation/local-* directory. Only a clean R CMD check result writes PASS.
-No random data are used. After installation, run Rscript tools/example.R and
-inspect the generated synthetic workbook in the target Excel application.
-The PDF manual is not built by the --no-manual check.
+Outputs use new validation/local-* and validation/portable-* directories.
+CSV/RDS, workbooks, logs, actual versions and assertions are retained as artifacts.
+Static-audit files describe a pre-commit snapshot and cannot establish runtime
+correctness, installation success or current remote CI status.
+静态检查与哈希不是运行测试；最终结论需要实际日志支持。
+
+## Limits / 边界
+
+Private GitHub installation requires authorization. Local tar installation
+requires R and dependencies; dependencies are not bundled for fully offline setup.
+No raw research data, credentials, screenshots or font files are uploaded.
+Font names are checked in XML; no claim of native Excel visual review is made.
+私有仓库仍需授权；源码包不含 R 与依赖。字体不嵌入，未宣称在原生 Excel 中完成视觉验收。

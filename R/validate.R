@@ -109,7 +109,9 @@
   if (any(chars > 32767L)) {
     stop(paste0(label, ": text exceeds Excel's 32767-character cell limit."), call. = FALSE)
   }
-  if (any(grepl("[\\x01-\\x08\\x0B\\x0C\\x0E-\\x1F\\x{FFFE}\\x{FFFF}]", x, perl = TRUE))) {
+  # Enable Unicode mode even when all input strings are ASCII.
+  invalid_xml <- "(*UTF)[\\x01-\\x08\\x0B\\x0C\\x0E-\\x1F\\x{FFFE}\\x{FFFF}]"
+  if (any(grepl(invalid_xml, enc2utf8(x), perl = TRUE))) {
     stop(paste0(label, ": contains XML-invalid control characters."), call. = FALSE)
   }
 }

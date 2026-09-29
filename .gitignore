@@ -9,3 +9,4 @@
 *.bak
 .DS_Store
 validation/local-*/
+validation/portable-*/

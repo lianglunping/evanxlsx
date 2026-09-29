@@ -10,3 +10,4 @@
 ^.*\.xlsx$
 ^.*\.bak$
 ^\.gitattributes$
+^README\.en\.md$

@@ -25,8 +25,12 @@ r <- file.path(R.home("bin"), if (.Platform$OS.type == "windows") "R.exe" else "
 run <- function(args, logfile) {
   cat(paste(c(shQuote(r), args), collapse = " "), "\n",
       file = file.path(out, "commands.txt"), append = TRUE)
-  status <- system2(r, args, stdout = logfile, stderr = logfile)
-  cat(readLines(logfile, warn = FALSE), sep = "\n")
+  # Keep an open subprocess log outside the source tree being copied by build.
+  capture <- tempfile(pattern = "evanxlsx-command-", fileext = ".log")
+  on.exit(unlink(capture), add = TRUE)
+  status <- system2(r, args, stdout = capture, stderr = capture)
+  if (!file.copy(capture, logfile, overwrite = FALSE)) stop("Cannot retain log: ", logfile)
+  cat(readLines(capture, warn = FALSE), sep = "\n")
   if (!identical(status, 0L)) {
     writeLines("FAIL", file.path(out, "STATUS.txt"))
     stop("Command failed. Logs: ", out)

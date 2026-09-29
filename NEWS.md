@@ -1,10 +1,14 @@
+# evanxlsx 0.1.1
+
+- Fix XML text validation for ASCII-only input by enabling PCRE UTF mode.
+- Keep open build/check logs outside the copied source tree on Windows.
+- Add Unicode, wide-table and noncharacter regression tests.
+- Test three installation routes in fresh R processes and isolated libraries.
+- Add deterministic bilingual fixtures, full-cell checks, 12 formatting examples
+  and a 10,000-row export test; retain evidence as CI artifacts.
+- Add Chinese and English installation/use documentation.
+- Public export arguments and default formatting remain unchanged.
+
 # evanxlsx 0.1.0
 
-Initial source implementation uploaded to the private repository. Runtime acceptance is tracked per commit in GitHub Actions; no stable release is declared.
-
-- One exported function, `write_xlsx()`.
-- A single font, adjustable size and horizontal/vertical alignment.
-- Blank NA/NaN, bold headers, three-line borders and freeze panes.
-- Automatic column widths with a cap, wrapping and optional filters.
-- New-workbook export with overwrite protection and mandatory backups on replacement.
-- Input validation, XML-level tests, Chinese usage documentation and CI configuration.
+Initial source candidate. Its first CI run failed; it is not a validated release.

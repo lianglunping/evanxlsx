@@ -114,3 +114,24 @@ test_that("row and column limits account for the header", {
   d <- as.data.frame(rep(list(integer()), 16385L))
   expect_error(new_export(d), "limits")
 })
+
+
+test_that("XML checks accept ASCII and reject Unicode noncharacters", {
+  for (value in c("plain ASCII", "001", "caf\u00e9", "\u6ce8\u91ca")) {
+    expect_no_error(new_export(data.frame(text = value)))
+  }
+  for (code in c(0xFFFE, 0xFFFF)) {
+    expect_error(new_export(data.frame(text = intToUtf8(code))), "XML-invalid")
+  }
+})
+
+test_that("wide tables and Unicode sheet/header names work", {
+  d <- as.data.frame(setNames(rep(list(1:2), 100), paste0("col_", 1:100)))
+  path <- new_export(d)
+  expect_identical(attr_at(cell_border(path, "CV3"), "bottom", "style"), "medium")
+  d <- data.frame(value = c("\u4e2d\u6587 English", NA))
+  names(d) <- "\u6ce8\u91ca_Annotation"
+  path <- new_export(d, sheet = "\u793a\u4f8b_Demo")
+  expect_identical(attr_at(xml_part(path, "xl/workbook.xml"), ".//sheet", "name"),
+                   "\u793a\u4f8b_Demo")
+})
