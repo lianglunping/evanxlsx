@@ -81,7 +81,6 @@ test_that("row limits are inclusive, checked on final output, and never truncate
 })
 
 test_that("collection uses one bounded execution without mutating input queries", {
-  # An explicit oracle checks the adapter call graph as well as real output tests above.
   materialize <- getFromNamespace(".materialize_sheet", "evanxlsx")
   calls <- list()
   fake <- list(head = function(n) {
@@ -149,26 +148,17 @@ test_that("preflight refuses invalid output before querying real backends", {
   }
 })
 
-test_that("backend fixture has a reproducible larger 72-column export", {
-  n <- 10000L
-  d <- data.frame(Sample_ID = sprintf("%08d", seq_len(n)),
-                   Description = rep(c("Synthetic \u5408\u6210", NA_character_), n / 2),
-                   stringsAsFactors = FALSE)
-  for (j in 3:72) d[[paste0("value_", j)]] <- (seq_len(n) %% (j + 1L)) / (j + 1L)
-  before <- tools::md5sum(file.path(out, "mixed.xlsx"))
-  times <- data.frame(backend = character(), elapsed_seconds = numeric(), bytes = numeric())
-  for (kind in c("r", "duckplyr", "polars_lazy")) {
-    x <- switch(kind, r = d, duckplyr = duckplyr::as_duckdb_tibble(d, prudence = "stingy"),
-                polars_lazy = polars::as_polars_df(d)$lazy())
-    f <- file.path(out, paste0("large_", kind, ".xlsx"))
-    elapsed <- system.time(write_xlsx(x, f, collect = TRUE, max_rows = n, widths = 16))["elapsed"]
-    back <- openxlsx2::read_xlsx(f, cols = 1L, skip_empty_rows = FALSE)
-    expect_identical(back[[1]], d$Sample_ID)
-    expect_equal(nrow(back), n)
-    expect_identical(attr_at(cell_border(f, "BT10001"), "bottom", "style"), "medium")
-    times <- rbind(times, data.frame(backend = kind, elapsed_seconds = unname(elapsed), bytes = file.info(f)$size))
-    rm(x)
-  }
-  utils::write.csv(times, file.path(out, "export_times.csv"), row.names = FALSE)
-  expect_identical(tools::md5sum(file.path(out, "mixed.xlsx")), before)
+test_that("Null and NaN columns produce value-less cells", {
+  x <- pl$DataFrame(empty = c(NA, NA), num = c(NaN, 1))$with_columns(pl$col("empty")$cast(pl$Null))
+  f <- backend_export(x, "null_nan")
+  ws <- xml_part(f, "xl/worksheets/sheet1.xml")
+  for (a in c("A2", "A3", "B2")) expect_length(xml2::xml_find_all(xml_cell(ws, a), "v|is|f"), 0L)
+  expect_equal(number_at(f, "B3"), 1)
+})
+
+test_that("Duration and Binary are explicitly rejected", {
+  x <- pl$DataFrame(n = 1:2)$with_columns(pl$col("n")$cast(pl$Duration("ns")))
+  expect_error(new_export(x$lazy(), collect = TRUE), "unsupported Polars type Duration")
+  b <- pl$DataFrame(s = c("ab", "cd"))$with_columns(pl$col("s")$cast(pl$Binary))
+  expect_error(new_export(b), "unsupported Polars type Binary")
 })

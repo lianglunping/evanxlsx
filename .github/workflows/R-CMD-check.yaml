@@ -56,12 +56,26 @@ jobs:
         run: Rscript tools/check.R
       - name: Three installation routes with core exports
         run: Rscript tools/install_check.R
-      - name: Install package for dedicated integration
+      - name: Install R-built package for dedicated integration
         if: matrix.backend
-        run: R CMD INSTALL .
+        shell: Rscript {0}
+        run: |
+          archives <- Sys.glob('validation/local-*/evanxlsx_0.2.0.tar.gz')
+          stopifnot(length(archives) == 1L)
+          install.packages(archives, repos = NULL, type = 'source')
       - name: Real duckplyr and Polars integration, with no skipped tests
         if: matrix.backend
         run: Rscript tools/integration_check.R
+      - name: Larger 10000-row by 72-column exports
+        if: matrix.name == 'linux-release'
+        run: Rscript tools/integration_check.R --large
+      - name: Retain exact Git source snapshot
+        if: always()
+        shell: bash
+        run: |
+          mkdir -p validation/source
+          git archive --format=zip --prefix=evanxlsx/ HEAD -o validation/source/evanxlsx_source.zip
+          git rev-parse HEAD > validation/source/COMMIT.txt
       - uses: actions/upload-artifact@v7
         if: always()
         with:
@@ -70,6 +84,8 @@ jobs:
             validation/local-*/
             validation/portable-*/
             validation/integration-*/
+            validation/large-*/
+            validation/source/
           retention-days: 14
   dependencies:
     name: auto-dependencies-${{ matrix.os }}
@@ -95,5 +111,9 @@ jobs:
         if: always()
         with:
           name: auto-dependencies-${{ matrix.os }}
-          path: validation/dependencies-*/
+          path: |
+            validation/dependencies-*/*.log
+            validation/dependencies-*/*.txt
+            validation/dependencies-*/*.csv
+            validation/dependencies-*/*.xlsx
           retention-days: 14

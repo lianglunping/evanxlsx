@@ -11,8 +11,7 @@ stopifnot(!requireNamespace("openxlsx2", quietly = TRUE),
 cat("PRECONDITION: openxlsx2 and optional backends absent from visible libraries\n")
 cat("LIBRARIES:\n", .libPaths(), sep = "\n")
 if (method == "outdated") {
-  # A synthetic DESCRIPTION-only fixture tests resolver minimum-version logic.
-  # It is NOT an old openxlsx2 implementation or a compatibility test of one.
+  # Synthetic dependency metadata, NOT an older export implementation.
   fake <- file.path(cfg$out, "synthetic-old-dependency"); dir.create(fake)
   writeLines(c("Package: openxlsx2", "Version: 0.0.0", "Title: Synthetic Version Fixture",
     "Description: Tests dependency resolution only; no export implementation.",
@@ -27,12 +26,12 @@ if (method == "github") {
   token <- Sys.getenv("GITHUB_TOKEN", Sys.getenv("GITHUB_PAT"))
   stopifnot(nzchar(ref), nzchar(token))
   remotes::install_github("lianglunping/evanxlsx", ref = ref, lib = lib,
-                          auth_token = token, dependencies = NA, upgrade = "never",
+                          auth_token = token, dependencies = NA, upgrade = "always",
                           build_vignettes = FALSE)
   stopifnot(utils::packageDescription("evanxlsx", lib.loc = lib)$RemoteSha == ref)
   rm(token)
 } else {
-  remotes::install_local(cfg$root, lib = lib, dependencies = NA, upgrade = "never",
+  remotes::install_local(cfg$root, lib = lib, dependencies = NA, upgrade = "always",
                          build_vignettes = FALSE)
 }
 stopifnot(utils::packageVersion("openxlsx2", lib.loc = lib) >= "1.29", requireNamespace("openxlsx2"),
@@ -44,6 +43,13 @@ f <- file.path(cfg$out, paste0("export_", method, ".xlsx"))
 evanxlsx::write_xlsx(x, f)
 y <- openxlsx2::read_xlsx(f, skip_empty_rows = FALSE)
 stopifnot(identical(y$id, x$id), identical(y$note, x$note), identical(y$value, x$value))
-cat("PASS: required dependencies resolved; no optional backend installed; export verified\n")
+for (kind in c("polars_data_frame", "duckplyr_df")) {
+  dummy <- structure(list(), class = kind)
+  err <- tryCatch(evanxlsx::write_xlsx(dummy, tempfile(fileext = ".xlsx"), collect = TRUE),
+                  error = identity)
+  stopifnot(inherits(err, "error"), grepl("Optional backend requires", conditionMessage(err)))
+}
+stopifnot(!requireNamespace("duckplyr", quietly = TRUE), !requireNamespace("polars", quietly = TRUE))
+cat("PASS: required dependencies resolved; optional absence produces installation hints only; export verified\n")
 writeLines(c(capture.output(sessionInfo()), paste("openxlsx2:", packageVersion("openxlsx2")),
              paste("evanxlsx:", packageVersion("evanxlsx"))), file.path(cfg$out, paste0(method, "_session.txt")))

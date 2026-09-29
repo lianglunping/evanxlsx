@@ -75,7 +75,7 @@
     }
     schema <- if (kind == "polars_lazy") x$collect_schema() else x$schema
     nm <- names(schema)
-    types <- vapply(schema, function(d) sub("\\(.*$", "", as.character(d)), character(1))
+    types <- vapply(schema, function(d) sub("\\(.*$", "", format(d, abbreviated = FALSE)), character(1))
     allowed <- c("Boolean", "Int8", "Int16", "Int32", "Int64", "UInt8", "UInt16",
                  "UInt32", "UInt64", "Float32", "Float64", "Decimal", "String",
                  "Categorical", "Enum", "Date", "Datetime", "Time", "Null")

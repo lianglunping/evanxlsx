@@ -1,1 +1,2 @@
 export(write_xlsx)
+importFrom(openxlsx2,wb_workbook)
