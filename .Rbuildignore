@@ -1,0 +1,12 @@
+^\.git$
+^\.github$
+^\.gitignore$
+^LICENSE\.md$
+^docs$
+^tools$
+^validation$
+^.*\.Rcheck$
+^.*\.tar\.gz$
+^.*\.xlsx$
+^.*\.bak$
+^\.gitattributes$

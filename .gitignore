@@ -1,0 +1,11 @@
+.Rhistory
+.RData
+.Ruserdata
+.Rproj.user/
+.Renviron
+*.Rcheck/
+*.tar.gz
+*.xlsx
+*.bak
+.DS_Store
+validation/local-*/

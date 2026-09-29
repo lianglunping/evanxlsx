@@ -1,0 +1,24 @@
+Package: evanxlsx
+Type: Package
+Title: Simple Consistent Excel Exports
+Version: 0.1.0
+Authors@R: person("Evan", role = c("aut", "cre"),
+    email = "104670239+lianglunping@users.noreply.github.com")
+Author: Evan [aut, cre]
+Maintainer: Evan <104670239+lianglunping@users.noreply.github.com>
+Description: Exports a data frame or a named list of data frames to an
+    Excel workbook using 'openxlsx2'. Provides a single font, configurable
+    alignment and font size, blank missing values, frozen headers,
+    bounded column widths, and three-line borders. Existing files are
+    protected by default and backed up before an explicitly requested
+    overwrite. Does not upload data or install fonts.
+License: MIT + file LICENSE
+Encoding: UTF-8
+Depends: R (>= 4.1.0)
+Imports: openxlsx2 (>= 1.29)
+Suggests:
+    testthat (>= 3.2.0),
+    xml2,
+    tibble
+Config/testthat/edition: 3
+SystemRequirements: A zip utility supported by openxlsx2

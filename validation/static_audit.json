@@ -1,0 +1,53 @@
+{
+  "audit_status": "NO_STRUCTURAL_ISSUES_DETECTED",
+  "checks": {
+    "utf8_source_files_examined": 24,
+    "r_files_lexically_examined": 8,
+    "lexical_scope": "Balanced delimiters/comments/quotes only; NOT native R parsing",
+    "documented_arguments": 17,
+    "exported_functions": [
+      "write_xlsx"
+    ],
+    "test_scenarios_written_not_run": {
+      "tests/testthat/test-export.R": 20,
+      "tests/testthat/test-validation.R": 14
+    },
+    "total_test_scenarios_written_not_run": 34,
+    "workflow_yaml": "Parsed with PyYAML 6.0.3; NOT executed"
+  },
+  "errors": [],
+  "R_runtime_found_on_PATH": null,
+  "Rscript_found_on_PATH": null,
+  "native_R_parse": "NOT_RUN",
+  "R_CMD_check": "NOT_RUN",
+  "testthat": "NOT_RUN",
+  "XLSX_export": "NOT_RUN",
+  "GitHub_publication": "NOT_RUN",
+  "limitations": "This report cannot establish R syntax correctness, installability, runtime behavior, or Excel rendering.",
+  "source_sha256_examined": {
+    ".Rbuildignore": "e88920e016af54c0b2a62abb9d1305f36465de386e360446c567b7bc7cfbc882",
+    ".gitattributes": "1d474f57124afa3b04cf77a9a0635f7571461cd86b125621db6cd806b24453ca",
+    ".github/workflows/R-CMD-check.yaml": "62010f1197da6a9d0e729295f28141a53de3c86a2082c3b79ca45bd547a692f1",
+    ".gitignore": "03969283eecdd80f61af194428ff2d7e174623b10f22dcff719f83ced2d83a55",
+    "DESCRIPTION": "f703222b8fd1a592f30f398e7ebf8a72cb9001327cb82fe83f62e31a130797d3",
+    "LICENSE": "937bf5e3d57229289cbfea1a1a4195dcf7433aec33e788d0bd0efb4e36250cbb",
+    "LICENSE.md": "f087b2ec1fc96db09447bcc909e99ebf9bf46b6ab79cb8d60f8a469c602bc0f7",
+    "NAMESPACE": "dea4498feecb3987b95ff84189c865e232182d03e105b94f50238c472f26ebb9",
+    "NEWS.md": "2cbeb120faf801becde0b680a48f0585c6fca269b742c6750d49edd220a766e7",
+    "R/validate.R": "14746c53aae588cd1e0fe32354d227ee679336b8801da9db1ee075a48c86333f",
+    "R/write_xlsx.R": "0b65ee3d036e21a538ae74dad57faa36db1ecf8ac535b125979af69c4dc4090e",
+    "README.md": "e24fcf5aa88f9a7d5ece96fc90dc812e3229dfb3780a6090aea37d517341ddca",
+    "docs/usage.html": "19cf9d70dc1fdf928d46702ce2cc998f77c73c175487c604d997a8efc304edd3",
+    "man/write_xlsx.Rd": "663ff37ad2e0fe55a0ff3b01adcd6276db4b9fb47544264d8137e2bdee542732",
+    "tests/testthat/helper-xml.R": "853fc0daad67881ebc41cf937b57c3f3b80f9f776bad780175410c2827fa6fe4",
+    "tests/testthat/test-export.R": "380ff5ea3eaf5c3108bc5f338cdc4adfb0b3fcd9929979d352dbef448df2760f",
+    "tests/testthat/test-validation.R": "f8933cec3549f21ab5b5990c7c5b2d6542a4ee99932bffcb0380596956c6474f",
+    "tests/testthat.R": "29056259afd86643d1ffee5b057ab0f460ea5401b027c4e8cf582eb95f73ee7e",
+    "tools/check.R": "044e2ea863a8128c53a1d7b58aeab1a7bc448487c93794be6d452ff388c3e96e",
+    "tools/example.R": "11e49801f9a0ed5de5fad1a39e1b3298545047d76bb4db40c871fa3128c89569",
+    "tools/package_source.py": "d0b4bfdc03096de3c7fb884faf9c9a56bb7b3321e55ed24efc0c775a470d4198",
+    "tools/static_audit.py": "639f8698be034a88cfd0597549a1e335656e6c745405b081c73cc4c42f25b0fe",
+    "validation/STATUS.md": "e16d6a5bf4d9c00d2d03f67a96d57d96e1739452e64bace854f3dc27563d621c",
+    "validation/environment_probe.txt": "b712b4cb052b15493ade01059170fb124169d9b722bf0b76ee77490959ace0d1"
+  }
+}

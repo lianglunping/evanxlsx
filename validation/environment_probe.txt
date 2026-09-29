@@ -1,0 +1,13 @@
+Environment probe (delivery environment, not user machine)
+R on PATH: None
+Rscript on PATH: None
+No R package tests, R installation, or workbook export have run.
+
+apt-get update log excerpt (attempted setup):
+Ign:1 http://deb.debian.org/debian trixie InRelease
+Ign:2 http://deb.debian.org/debian trixie-updates InRelease
+Ign:3 http://deb.debian.org/debian-security trixie-security InRelease
+Ign:1 http://deb.debian.org/debian trixie InRelease
+Ign:2 http://deb.debian.org/debian trixie-updates InRelease
+Ign:3 http://deb.debian.org/debian-security trixie-security InRelease
+Ign:1 http://deb.debian.org/debian trixie InRelease
