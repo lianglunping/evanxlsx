@@ -1,7 +1,7 @@
 #' Export data frames with consistent Excel formatting
 #'
-#' @param x A data.frame (including tibble/data.table), or a non-empty named
-#'   list of data.frames. List names are worksheet names, in the supplied order.
+#' @param x A data.frame, duckplyr data frame, R Polars DataFrame/LazyFrame,
+#'   or a non-empty named list mixing these objects. List names are sheet names.
 #' @param file Output .xlsx path. The parent directory must already exist.
 #' @param sheet Worksheet name for a single data.frame; ignored for a list.
 #' @param font One font name for all cells. Chinese name "SimSun" may also be
@@ -21,6 +21,11 @@
 #' @param grid_lines Whether to show Excel's on-screen grid lines.
 #' @param overwrite Whether to replace an existing file. Default FALSE.
 #'   When TRUE, an existing file is first copied to a unique .bak file.
+#' @param collect Allow execution of duckplyr or Polars lazy queries. Default
+#'   FALSE. All duckplyr objects require TRUE, even if already materialized.
+#' @param max_rows Maximum data rows per sheet, from 0 to 1048575. Lazy queries
+#'   retrieve at most max_rows + 1 rows and fail if the limit is exceeded.
+#'   This is a result-size limit, not an engine memory or execution-time limit.
 #' @return The normalized output path, invisibly.
 #' @export
 write_xlsx <- function(
@@ -32,8 +37,8 @@ write_xlsx <- function(
     widths = "auto", max_width = 40,
     freeze = TRUE, freeze_first_col = FALSE,
     filter = FALSE, three_line = TRUE, grid_lines = FALSE,
-    overwrite = FALSE) {
-  sheets <- .prepare_sheets(x, sheet)
+    overwrite = FALSE, collect = FALSE, max_rows = 1048575L) {
+  # Validate output and scalar options before forcing or inspecting x.
   .check_string(file, "file")
   .check_string(font, "font")
   .check_number(font_size, "font_size", 1, 409)
@@ -45,18 +50,18 @@ write_xlsx <- function(
   valign <- .check_choice(valign, c("center", "top", "bottom"), "valign")
   flags <- list(wrap = wrap, freeze = freeze, freeze_first_col = freeze_first_col,
                 filter = filter, three_line = three_line,
-                grid_lines = grid_lines, overwrite = overwrite)
+                grid_lines = grid_lines, overwrite = overwrite, collect = collect)
   for (nm in names(flags)) .check_flag(flags[[nm]], nm)
+  .check_number(max_rows, "max_rows", 0, 1048575L)
+  if (max_rows != trunc(max_rows)) stop("`max_rows` must be a whole number.", call. = FALSE)
+  max_rows <- as.integer(max_rows)
   auto_width <- identical(widths, "auto")
   if (!auto_width) {
     if (!is.numeric(widths) || !length(widths) || any(!is.finite(widths)) ||
         any(widths < 1 | widths > 250)) {
       stop("`widths` must be 'auto' or numeric widths between 1 and 250.", call. = FALSE)
     }
-    if (length(widths) != 1L &&
-        any(vapply(sheets, ncol, integer(1)) != length(widths))) {
-      stop("`widths` must have length 1 or match every sheet's column count.", call. = FALSE)
-    }
+
   }
   file <- path.expand(file)
   if (!grepl("\\.xlsx$", file, ignore.case = TRUE)) {
@@ -68,7 +73,27 @@ write_xlsx <- function(
   if (file.exists(file) && !overwrite) {
     stop("File already exists; choose a new name or set `overwrite = TRUE`.", call. = FALSE)
   }
+  if (file.access(dirname(file), 2L) != 0L ||
+      (file.exists(file) && file.access(file, 2L) != 0L)) {
+    stop("Output location is not writable.", call. = FALSE)
+  }
   if (identical(font, "\u5b8b\u4f53")) font <- "SimSun"
+  sheets <- .normalise_sheets(x, sheet)
+  kinds <- vapply(sheets, .input_kind, character(1))
+  needs_collect <- kinds %in% c("duckplyr", "polars_lazy")
+  if (!collect && any(needs_collect)) {
+    stop(paste0("Sheets requiring query execution: ",
+                paste(names(sheets)[needs_collect], collapse = ", "),
+                ". Set `collect = TRUE` or collect explicitly first."), call. = FALSE)
+  }
+  # Inspect all schemas before executing any query. Never ask duckplyr for nrow().
+  meta <- lapply(seq_along(sheets), function(i) {
+    .inspect_sheet(sheets[[i]], kinds[i], names(sheets)[i], max_rows)
+  })
+  if (!auto_width && length(widths) != 1L &&
+      any(vapply(meta, function(m) length(m$names), integer(1)) != length(widths))) {
+    stop("`widths` must have length 1 or match every sheet's column count.", call. = FALSE)
+  }
 
   # Restore the caller's settings even when workbook creation fails.
   old <- options(openxlsx2.minWidth = min(10, max_width),
@@ -79,7 +104,7 @@ write_xlsx <- function(
                    font_color = openxlsx2::wb_color(hex = "FF000000"))
 
   for (i in seq_along(sheets)) {
-    d <- sheets[[i]]
+    d <- .materialize_sheet(sheets[[i]], meta[[i]], names(sheets)[i], max_rows)
     last_col <- openxlsx2::int2col(ncol(d))
     last_row <- nrow(d) + 1L
     all_dims <- paste0("A1:", last_col, last_row)
@@ -111,6 +136,7 @@ write_xlsx <- function(
       wb$freeze_pane(i, first_row = freeze, first_col = freeze_first_col)
     }
     wb$set_col_widths(i, cols = seq_len(ncol(d)), widths = widths)
+    rm(d)  # Do not retain every converted data frame alongside the workbook.
   }
 
   # Finish the new workbook before touching an existing output file.

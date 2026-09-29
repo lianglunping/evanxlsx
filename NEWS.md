@@ -1,14 +1,19 @@
+# evanxlsx 0.2.0
+
+- Validate file/options before forcing input. Convert one worksheet at a time.
+- Optional duckplyr and R Polars 1.16 adapters, explicit collect permission and per-sheet row cap.
+- Check integer precision before R double conversion; preserve Decimal/temporal text.
+- Reject unsupported backend schemas rather than silently flattening.
+- Add installed bilingual examples/guide, missing-dependency resolution tests and real backend CI.
+- Existing positional arguments and formatting defaults are retained.
+- Migration: all duckplyr inputs require collect=TRUE or explicit upstream collection.
+- Core R>=4.1.3 is separate from optional backend compatibility; no Polars 2.x support claim.
+
 # evanxlsx 0.1.1
 
-- Fix XML text validation for ASCII-only input by enabling PCRE UTF mode.
-- Keep open build/check logs outside the copied source tree on Windows.
-- Add Unicode, wide-table and noncharacter regression tests.
-- Test three installation routes in fresh R processes and isolated libraries.
-- Add deterministic bilingual fixtures, full-cell checks, 12 formatting examples
-  and a 10,000-row export test; retain evidence as CI artifacts.
-- Add Chinese and English installation/use documentation.
-- Public export arguments and default formatting remain unchanged.
+- Validated cross-platform core exports and three installation routes.
+- Added deterministic bilingual fixtures and independent value/style checks.
 
 # evanxlsx 0.1.0
 
-Initial source candidate. Its first CI run failed; it is not a validated release.
+- Initial candidate for consistent Excel exports using openxlsx2.

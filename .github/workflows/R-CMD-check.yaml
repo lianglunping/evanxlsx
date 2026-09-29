@@ -1,62 +1,99 @@
 name: R-CMD-check
 on:
   push:
-    branches: [main]
+    branches: [main, 'feature/0.2.0-backends']
+    paths-ignore: ['validation/**']
   pull_request:
   workflow_dispatch:
 permissions:
   contents: read
+concurrency:
+  group: evanxlsx-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 jobs:
   check:
-    name: ${{ matrix.config.label }}
+    name: ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 25
     strategy:
       fail-fast: false
       matrix:
-        config:
-          - {os: ubuntu-latest, r: release, label: linux-release}
-          - {os: windows-latest, r: release, label: windows-release}
-          - {os: macos-latest, r: release, label: macos-arm-release}
-          - {os: macos-15-intel, r: release, label: macos-intel-release}
-          - {os: ubuntu-latest, r: oldrel-1, label: linux-oldrel}
-          - {os: ubuntu-22.04, r: '4.1.3', label: linux-minimum}
-    runs-on: ${{ matrix.config.os }}
-    timeout-minutes: 20
+        include:
+          - {name: linux-release, os: ubuntu-24.04, r: release, backend: true}
+          - {name: windows-release, os: windows-latest, r: release, backend: true}
+          - {name: macos-arm-release, os: macos-latest, r: release, backend: true}
+          - {name: macos-intel-release, os: macos-15-intel, r: release, backend: true}
+          - {name: linux-oldrel, os: ubuntu-24.04, r: oldrel-1, backend: true}
+          - {name: linux-minimum-core, os: ubuntu-22.04, r: '4.1.3', backend: false}
     env:
-      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GITHUB_TOKEN: ${{ github.token }}
+      NOT_CRAN: 'true'
+      DUCKPLYR_FALLBACK_COLLECT: '0'
+      DUCKPLYR_FALLBACK_AUTO: '0'
+      EVANXLSX_BACKEND_TEST: ${{ matrix.backend }}
+      _R_CHECK_FORCE_SUGGESTS_: 'false'
     steps:
       - uses: actions/checkout@v7
-        with:
-          persist-credentials: false
+        with: {persist-credentials: false}
       - uses: r-lib/actions/setup-r@v2
         with:
-          r-version: ${{ matrix.config.r }}
+          r-version: ${{ matrix.r }}
           use-public-rspm: true
-      - uses: r-lib/actions/setup-r-dependencies@v2
-        with:
-          extra-packages: |
-            any::rcmdcheck
-            any::remotes
-          needs: check
-      - name: R CMD build and check
-        run: Rscript tools/check.R
-        shell: bash
-      - name: Install three ways and test synthetic data
-        run: Rscript tools/install_check.R
-        shell: bash
-      - name: Show check summary
-        if: always()
+      - name: Install check dependencies and selected optional backends
+        shell: Rscript {0}
         run: |
-          for log in validation/local-*/*.Rcheck/00check.log validation/portable-*/STATUS.txt; do
-            if [ -f "$log" ]; then cat "$log"; fi
-          done
-        shell: bash
-      - name: Retain logs, source package and synthetic workbooks
+          repos <- getOption('repos')
+          rspm <- Sys.getenv('RSPM')
+          if (nzchar(rspm)) repos <- c(RSPM = rspm)
+          repos <- c(repos, multiverse = 'https://community.r-multiverse.org')
+          options(repos = repos)
+          core <- c('openxlsx2', 'testthat', 'xml2', 'tibble', 'remotes')
+          packages <- if (Sys.getenv('EVANXLSX_BACKEND_TEST') == 'true') c(core, 'duckplyr', 'polars') else core
+          install.packages(packages, Ncpus = 2)
+          stopifnot(all(vapply(packages, requireNamespace, logical(1), quietly = TRUE)))
+          print(sessionInfo())
+      - name: Build and check core package
+        run: Rscript tools/check.R
+      - name: Three installation routes with core exports
+        run: Rscript tools/install_check.R
+      - name: Install package for dedicated integration
+        if: matrix.backend
+        run: R CMD INSTALL .
+      - name: Real duckplyr and Polars integration, with no skipped tests
+        if: matrix.backend
+        run: Rscript tools/integration_check.R
+      - uses: actions/upload-artifact@v7
         if: always()
-        uses: actions/upload-artifact@v7
         with:
-          name: validation-${{ matrix.config.label }}
+          name: validation-${{ matrix.name }}
           path: |
             validation/local-*/
             validation/portable-*/
-          if-no-files-found: warn
+            validation/integration-*/
+          retention-days: 14
+  dependencies:
+    name: auto-dependencies-${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, windows-latest]
+    env:
+      GITHUB_TOKEN: ${{ github.token }}
+      NOT_CRAN: 'true'
+    steps:
+      - uses: actions/checkout@v7
+        with: {persist-credentials: false}
+      - uses: r-lib/actions/setup-r@v2
+        with:
+          r-version: release
+          use-public-rspm: true
+      - name: Required dependency resolution from isolated user libraries
+        run: Rscript tools/dependency_check.R
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: auto-dependencies-${{ matrix.os }}
+          path: validation/dependencies-*/
           retention-days: 14

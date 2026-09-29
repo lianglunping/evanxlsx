@@ -42,9 +42,27 @@ archive <- paste0("evanxlsx_", version, ".tar.gz")
 if (!file.exists(archive)) stop("Expected build archive was not produced.")
 run(c("CMD", "check", "--no-manual", shQuote(archive)), "check-command.log")
 check_log <- file.path(out, "evanxlsx.Rcheck", "00check.log")
-if (!file.exists(check_log) || !any(grepl("^Status: OK$", readLines(check_log, warn = FALSE)))) {
-  writeLines("REVIEW_REQUIRED", file.path(out, "STATUS.txt"))
-  stop("R CMD check completed with notes or warnings. Review: ", check_log)
+if (!file.exists(check_log)) stop("R CMD check log missing.")
+lines <- readLines(check_log, warn = FALSE)
+status_ok <- any(grepl("^Status: OK$", lines))
+# Minimum-R job deliberately excludes optional backends. Accept ONLY its dependency NOTE.
+minimum_core <- identical(Sys.getenv("EVANXLSX_BACKEND_TEST"), "false")
+allowed_note <- minimum_core && any(grepl("^Status: 1 NOTE$", lines)) &&
+  sum(grepl("[.][.][.] NOTE$", lines)) == 1L &&
+  any(grepl("checking package dependencies [.][.][.] NOTE$", lines)) &&
+  any(grepl("Packages suggested but not available", lines))
+if (allowed_note) {
+  at <- grep("Packages suggested but not available", lines)
+  nearby <- paste(lines[seq.int(at[1], min(at[1] + 3L, length(lines)))], collapse = " ")
+  # The fixture is only allowed to omit duckplyr, dplyr and polars, not core/test dependencies.
+  expected_missing <- c("duckplyr", "dplyr", "polars")
+  for (pkg in packages) if (grepl(paste0("['\"\u2018]", pkg, "['\"\u2019]"), nearby)) allowed_note <- FALSE
+  if (!any(vapply(expected_missing, function(pkg) grepl(pkg, nearby, fixed = TRUE), logical(1)))) allowed_note <- FALSE
 }
-writeLines("PASS", file.path(out, "STATUS.txt"))
-cat("\nPASS. Logs and R-built source archive: ", out, "\n", sep = "")
+if (!status_ok && !allowed_note) {
+  writeLines("REVIEW_REQUIRED", file.path(out, "STATUS.txt"))
+  stop("R CMD check has unaccepted notes or warnings. Review: ", check_log)
+}
+writeLines(if (status_ok) "PASS" else "PASS_CORE_WITH_OPTIONAL_DEPENDENCY_NOTE",
+           file.path(out, "STATUS.txt"))
+cat("\nCheck accepted. Logs and R-built source archive: ", out, "\n", sep = "")

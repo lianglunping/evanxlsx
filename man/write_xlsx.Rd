@@ -11,11 +11,13 @@ write_xlsx(
   widths = "auto", max_width = 40,
   freeze = TRUE, freeze_first_col = FALSE,
   filter = FALSE, three_line = TRUE, grid_lines = FALSE,
-  overwrite = FALSE
+  overwrite = FALSE,
+  collect = FALSE,
+  max_rows = 1048575L
 )
 }
 \arguments{
-\item{x}{A data.frame, including a tibble or data.table, or a non-empty named list of data.frames. List order is sheet order.}
+\item{x}{A data.frame (including a tibble or data.table), a duckplyr data frame, an R Polars DataFrame/LazyFrame, or a non-empty named list mixing these objects. List order is sheet order.}
 \item{file}{Output .xlsx path. Its parent directory must already exist.}
 \item{sheet}{Sheet name for a single data.frame; ignored for lists. Default \code{"Sheet1"}.}
 \item{font}{One font for all cells. Default \code{"Times New Roman"}. The Chinese name for SimSun is accepted as an alias. No fonts are installed or embedded.}
@@ -31,6 +33,8 @@ write_xlsx(
 \item{filter}{Add column filters. Default FALSE. No filter is added to a header-only sheet.}
 \item{three_line}{Draw top and bottom rules and a thin rule below the header. Default TRUE. Header-only tables have two outer rules.}
 \item{grid_lines}{Show on-screen worksheet grid lines. Default FALSE.}
+\item{collect}{Allow execution of duckplyr and Polars lazy queries. Default FALSE. All duckplyr frames require TRUE, even when cached.}
+\item{max_rows}{Maximum data rows per sheet; a whole number from 0 to 1048575. Default is Excel capacity, not a safe memory budget. Lazy queries fetch at most this limit plus one row; excess rows cause an error, never a truncated output.}
 \item{overwrite}{Default FALSE. When TRUE and the destination exists, keep a unique .bak copy before replacement.}
 }
 \value{The normalized output file path, invisibly.}
@@ -55,6 +59,19 @@ Ordinary formula-like strings are written as text, not formulas. Large numeric
 integers may lose precision in Excel; a warning is issued. Store identifiers as
 character before any precision has been lost. The function does not round the
 input numeric data.
+
+Optional backends are installed separately; see the installed bilingual guide
+at \code{system.file("guide", "usage.html", package = "evanxlsx")}.
+The adapter uses metadata before query execution and does not change duckplyr
+prudence. Polars collection explicitly uses the in-memory engine.
+The row bound limits returned rows, not upstream joins, sorting, memory, or time.
+Unsupported nested/binary/Duration types fail; convert them explicitly.
+Polars Int64/UInt64 columns are converted to exact character vectors before
+range checks; columns containing more than 15 decimal digits remain text.
+Decimal, Datetime and Time columns remain text to avoid precision loss.
+Date columns remain dates. Data.frame integer64 columns still require explicit
+character conversion. Precision already lost before export cannot be recovered.
+Each sheet is converted separately, but the workbook is not a streaming writer.
 
 Automatic widths are openxlsx2 heuristics, not pixel-exact font measurements.
 Temporary width options are restored on exit, including on errors. Justification

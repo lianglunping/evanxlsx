@@ -1,264 +1,89 @@
-<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>evanxlsx 0.1.1 | 中文与 English</title><style>body{font:16px/1.8 system-ui,sans-serif;max-width:1000px;margin:0 auto;padding:24px;color:#18232c;background:#fff}h1,h2{line-height:1.3}h2{margin-top:36px;border-top:1px solid #ddd;padding-top:18px}pre{background:#f3f5f7;padding:16px;overflow:auto;border-radius:6px}code{font-family:ui-monospace,monospace;font-size:.92em}table{border-collapse:collapse;display:block;overflow:auto}th,td{padding:8px 12px;border-bottom:1px solid #ddd;text-align:left}a{color:#235b80}nav{position:sticky;top:0;background:white;padding:10px;border-bottom:1px solid #ddd}section{margin-bottom:64px}@media(max-width:600px){body{padding:16px;font-size:15px}pre{padding:10px}}</style><nav><a href="#zh">中文说明</a> · <a href="#en">English guide</a></nav><section id="zh"><h1>evanxlsx</h1>
-<p><a href="#en">English</a> · <a href="#zh">中英文使用说明</a> · <a href="https://github.com/lianglunping/evanxlsx/blob/main/validation/STATUS.md">测试状态</a></p>
-<p>把数据框输出为统一格式的 Excel，只有一个导出函数。版本 <strong>0.1.1</strong>。
-正常使用只直接依赖 <code>openxlsx2</code>。仓库保持私有；测试和示例全部使用合成数据。
-测试结果以对应代码提交的 GitHub Actions 日志为准，不把源码上传当成测试通过。</p>
-<h2>安装：在不同电脑上使用</h2>
-<p>需要 <strong>R ≥ 4.1.3、openxlsx2 ≥ 1.29</strong>，并有可写的 R 包库。
-本包没有需要编译的 C/C++ 代码，但依赖包的源码安装可能需要编译工具。
-“跨平台”不代表没有 R、没有依赖或受到网络限制的任意设备都能直接安装。</p>
-<h3>方法 A：下载的源码包，不依赖 GitHub 登录</h3>
-<p>在 R 中运行，选择交付的 <code>evanxlsx_0.1.1.tar.gz</code>，不是 ZIP：</p>
-<pre><code class="language-r">install.packages(&quot;openxlsx2&quot;)  # 依赖已安装且版本满足要求时跳过
-install.packages(file.choose(), repos = NULL, type = &quot;source&quot;)
-packageVersion(&quot;evanxlsx&quot;)
-</code></pre>
-<p>可以把同一个源码包复制到 Windows、Mac、Linux。目标电脑仍须预装 R 和依赖；
-这不是把所有依赖一起打包的离线安装器。使用实际测试后的 0.1.1 包，不要继续用旧的 0.1.0 候选归档。</p>
-<h3>方法 B：已登录 GitHub CLI 的电脑</h3>
-<p>在终端运行：</p>
-<pre><code class="language-sh">gh repo clone lianglunping/evanxlsx
-cd evanxlsx
-Rscript -e 'install.packages(&quot;openxlsx2&quot;, repos = &quot;https://cloud.r-project.org&quot;)'
-R CMD INSTALL .
-</code></pre>
-<p>以后更新：在这个仓库目录运行 <code>git pull --ff-only</code>，再运行 <code>R CMD INSTALL .</code>。
-私有仓库需要账号拥有读取权限。不要把访问令牌发到聊天里。</p>
-<h3>方法 C：直接从 R 安装私有仓库</h3>
-<p>前提：本机已经安全配置了可读取该仓库的 <code>GITHUB_PAT</code>，且可访问 GitHub/CRAN：</p>
-<pre><code class="language-r">install.packages(c(&quot;openxlsx2&quot;, &quot;remotes&quot;))
-remotes::install_github(&quot;lianglunping/evanxlsx&quot;, upgrade = &quot;never&quot;)
-</code></pre>
-<p>需要固定代码版本时，增加 <code>ref = &quot;报告中的完整提交SHA&quot;</code>。
-不要把令牌直接写进脚本、示例、日志或版本控制。</p>
-<p>没有系统包库写权限时，可先创建自己的库：</p>
-<pre><code class="language-r">lib &lt;- path.expand(&quot;~/R/library&quot;)
-dir.create(lib, recursive = TRUE, showWarnings = FALSE)
-.libPaths(c(lib, .libPaths()))
-install.packages(&quot;openxlsx2&quot;, lib = lib)
-install.packages(file.choose(), repos = NULL, type = &quot;source&quot;, lib = lib)
-</code></pre>
-<p>新 R 会话也需把该目录加入 <code>.libPaths()</code>；包不会替你修改 <code>.Rprofile</code>。</p>
-<h2>两个数据框，两个 sheet</h2>
-<pre><code class="language-r">evanxlsx::write_xlsx(
-  list(variant_info = df, id83 = df1),
-  &quot;WES.xlsx&quot;
+<!doctype html>
+<html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>evanxlsx 0.2.0 · 中英文指南 / User guide</title>
+<style>body{font:16px/1.85 system-ui,sans-serif;max-width:960px;margin:auto;padding:24px;color:#202a35;background:#fafbfc}h1{line-height:1.3}h2{margin-top:2em;border-bottom:1px solid #ccd4dd;padding-bottom:8px}pre{overflow:auto;background:#eef2f6;padding:18px;border-radius:8px;font:14px/1.6 ui-monospace,monospace}summary{cursor:pointer;font-weight:650}p,td{overflow-wrap:anywhere}table{border-collapse:collapse;width:100%}td,th{border-bottom:1px solid #ccd4dd;padding:8px;text-align:left}a{color:#176784}.note{border-left:4px solid #52748e;padding:10px 16px;background:#edf3f8}</style>
+<main><h1>evanxlsx 0.2.0</h1><p>一个 Excel 导出函数，连接普通 R、duckplyr 与 R Polars。<br>One Excel writer for ordinary R data frames, duckplyr and R Polars.</p>
+<div class="note">本指南描述接口与边界。实际测试状态以 validation/STATUS_0.2.0.md 及随交付的日志为准。<br>This guide describes behavior, not a claim of completed testing. Consult the accompanying validation report and logs.</div>
+<h2>1. 安装与必要依赖 / Installation</h2>
+<p>安装器负责补齐必要依赖，导出函数不安装软件。GitHub 仓库为私有，需要在本机配置读取凭据；不要把凭据写进脚本、发到会话或提交到仓库。<br>The installer resolves required dependencies. Export never installs packages. The private repository requires a local read credential; never commit or share it.</p>
+<pre><code>install.packages("remotes")  # 首次使用 / First use
+remotes::install_github(
+  "lianglunping/evanxlsx",
+  ref = "feature/0.2.0-backends",
+  dependencies = NA,
+  upgrade = "never"
 )
-</code></pre>
-<p>默认：Times New Roman、11 磅、数据与表头居中、表头加粗、首行冻结、三线表、
-NA 空白、隐藏网格线、自动列宽上限 40、文字换行。不会默认覆盖已有文件。</p>
-<h2>字体、字号、对齐</h2>
-<pre><code class="language-r">evanxlsx::write_xlsx(
-  list(variant_info = df, id83 = df1),
-  &quot;WES_Arial.xlsx&quot;,
-  font = &quot;Arial&quot;,
-  font_size = 12,
-  align = &quot;left&quot;
-)
-</code></pre>
-<table>
-<thead>
-<tr>
-<th>参数</th>
-<th>选择</th>
-<th>默认</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><code>font</code></td>
-<td><code>Times New Roman</code>、<code>Arial</code>、<code>SimSun</code> / <code>宋体</code> 或其他字体名</td>
-<td>Times New Roman</td>
-</tr>
-<tr>
-<td><code>font_size</code></td>
-<td>1–409 pt</td>
-<td>11</td>
-</tr>
-<tr>
-<td><code>align</code></td>
-<td><code>center</code>、<code>left</code>、<code>right</code>、<code>justify</code></td>
-<td>center</td>
-</tr>
-<tr>
-<td><code>header_align</code></td>
-<td>同上，单独控制表头</td>
-<td>center</td>
-</tr>
-<tr>
-<td><code>valign</code></td>
-<td><code>center</code>、<code>top</code>、<code>bottom</code></td>
-<td>center</td>
-</tr>
-<tr>
-<td><code>widths</code></td>
-<td><code>&quot;auto&quot;</code>、单个数值或逐列向量</td>
-<td>auto</td>
-</tr>
-<tr>
-<td><code>max_width</code></td>
-<td>自动列宽上限</td>
-<td>40</td>
-</tr>
-<tr>
-<td><code>freeze</code> / <code>freeze_first_col</code></td>
-<td>冻结首行 / 首列</td>
-<td>TRUE / FALSE</td>
-</tr>
-<tr>
-<td><code>filter</code></td>
-<td>表头筛选</td>
-<td>FALSE</td>
-</tr>
-<tr>
-<td><code>three_line</code> / <code>grid_lines</code></td>
-<td>三线表 / 网格线</td>
-<td>TRUE / FALSE</td>
-</tr>
-<tr>
-<td><code>wrap</code></td>
-<td>文字换行</td>
-<td>TRUE</td>
-</tr>
-<tr>
-<td><code>overwrite</code></td>
-<td>替换整个工作簿，先保留独立 <code>.bak</code> 备份</td>
-<td>FALSE</td>
-</tr>
-</tbody>
-</table>
-<p><code>align</code> 只控制数据；全表靠左还需 <code>header_align = &quot;left&quot;</code>。
-<code>justify</code> 是两端对齐；短文本不一定有明显视觉差异。
-字体仅记录名称，不安装、不嵌入字体。字体缺失或没有某些字形时，Excel/系统可能替代显示。</p>
-<p>偏好可以在当前会话设置一次：</p>
-<pre><code class="language-r">options(evanxlsx.font = &quot;Arial&quot;, evanxlsx.font_size = 12, evanxlsx.align = &quot;left&quot;)
-</code></pre>
-<h2>数据安全和边界</h2>
-<p><code>NA</code> / <code>NaN</code> 写为空白，文本 <code>&quot;NA&quot;</code> 保留为文本。<code>&quot;001&quot;</code>、长字符编号和 <code>&quot;=1+1&quot;</code>
-不转成数值或公式。因子写标签，日期与时间保留相应格式；Excel 日期时间不保存时区。
-输入数据不会被原地修改。Inf、嵌套列、特殊公式类、非法工作表名等会报错，不静默改写。
-替换是替换整个工作簿，不是向已有工作簿追加 sheet。</p>
-<h2>实际测试和合成数据</h2>
-<p>CI 请求六个环境：Linux 当前 R、Windows 当前 R、Apple Silicon Mac 当前 R、
-Intel Mac 当前 R、Linux 上一代 R、Linux R 4.1.3。只有成功运行的环境才算已验证。
-每个环境执行 <code>R CMD build/check</code>，并分别从源码目录、本地 tar.gz、当前提交的私有 GitHub
-安装到独立包库，再用新的 R 进程调用已安装的包。</p>
-<pre><code class="language-sh">Rscript tools/check.R
-Rscript tools/install_check.R
-</code></pre>
-<p>开发测试需要 <code>openxlsx2</code>、<code>testthat</code>、<code>xml2</code>、<code>tibble</code>；GitHub 安装测试另外需要 <code>remotes</code>
-和本机安全配置的授权及 <code>EVANXLSX_REF</code>。本地缺授权时 GitHub 路径记为 NOT_RUN，而不是 PASS。</p>
-<p>数据由 <code>tools/fixtures.R</code> 确定性构造，不用随机抽样：240 行 × 11 列，包含中英文、缺失值、
-字面量 NA、空字符串、换行、特殊字符、18 位字符编号、因子、逻辑值、日期和时间。
-<code>id83</code> 为 83 个 <strong>TEST_ID</strong> 合成类别，不是实际突变特征谱。另有 10,000 行 × 6 列的导出检查。
-完整模式还生成三种字体 × 四种对齐的 12 个工作簿；XML 检查字体、字号、对齐和冻结状态。
-所有原始单元格按类型逐一核对。耗时仅为该 runner 的单次观察，不作性能排名。</p>
-<p>输出在新的 <code>validation/local-*</code> 和 <code>validation/portable-*</code> 中，包含输入 CSV/RDS、
-示例 Excel、安装日志、断言结果及环境版本。CSV 用 <code>&lt;MISSING&gt;</code> 区分缺失值；类型以 RDS 为准。
-程序检查不等于已在每种版本的 Excel 中人工查看字体与分页效果。</p>
-<h2>官方依据</h2>
-<p><a href="https://janmarvin.github.io/openxlsx2/reference/wb_add_data.html">openxlsx2 数据写入</a> ·
-<a href="https://janmarvin.github.io/openxlsx2/reference/base_font-wb.html">字体</a> ·
-<a href="https://janmarvin.github.io/openxlsx2/reference/wb_add_cell_style.html">对齐</a> ·
-<a href="https://remotes.r-lib.org/reference/install_github.html">私有 GitHub 安装</a> ·
-<a href="https://cran.r-project.org/doc/manuals/r-release/R-admin.html">R 安装手册</a></p>
-</section><section id="en" lang="en"><h1>evanxlsx</h1>
-<p><a href="#zh">中文</a> · <a href="#zh">Bilingual guide</a> · <a href="https://github.com/lianglunping/evanxlsx/blob/main/validation/STATUS.md">Validation status</a></p>
-<p>A small R package for consistent Excel exports. Version <strong>0.1.1</strong>; one exported function;
-only <code>openxlsx2</code> is a direct runtime dependency. The repository remains private.
-All fixtures are synthetic. An upload is not proof of a passing runtime check.</p>
-<h2>Install on another computer</h2>
-<p>Requires <strong>R ≥ 4.1.3</strong>, <strong>openxlsx2 ≥ 1.29</strong>, and a writable R library.
-The package itself is pure R, but building dependencies from source may require compilers.
-Portability does not mean installation on devices without R, missing dependencies,
-or networks that block the required downloads.</p>
-<h3>Local source archive: no GitHub login required</h3>
-<p>Select the delivered <code>evanxlsx_0.1.1.tar.gz</code>, not the ZIP:</p>
-<pre><code class="language-r">install.packages(&quot;openxlsx2&quot;)
-install.packages(file.choose(), repos = NULL, type = &quot;source&quot;)
-packageVersion(&quot;evanxlsx&quot;)
-</code></pre>
-<p>The same source archive can be copied between supported Windows, macOS and Linux systems.
-R and dependencies must already be installed for offline installation of this package.
-This is not an offline bundle of all dependencies. Do not keep using the old, unvalidated 0.1.0 archive.</p>
-<h3>GitHub CLI</h3>
-<p>After logging into an account with repository read permission:</p>
-<pre><code class="language-sh">gh repo clone lianglunping/evanxlsx
-cd evanxlsx
-Rscript -e 'install.packages(&quot;openxlsx2&quot;, repos = &quot;https://cloud.r-project.org&quot;)'
-R CMD INSTALL .
-</code></pre>
-<p>To update, run <code>git pull --ff-only</code> in that checkout, followed by <code>R CMD INSTALL .</code>.</p>
-<h3>Install directly from R</h3>
-<p>First configure a repository-readable <code>GITHUB_PAT</code> securely on your own computer:</p>
-<pre><code class="language-r">install.packages(c(&quot;openxlsx2&quot;, &quot;remotes&quot;))
-remotes::install_github(&quot;lianglunping/evanxlsx&quot;, upgrade = &quot;never&quot;)
-</code></pre>
-<p>Use <code>ref = &quot;full commit SHA from the validation report&quot;</code> to pin a code revision.
-Never put credentials in scripts, logs, commits or chat. Private access is not changed by this package.</p>
-<p>For a non-system library:</p>
-<pre><code class="language-r">lib &lt;- path.expand(&quot;~/R/library&quot;)
-dir.create(lib, recursive = TRUE, showWarnings = FALSE)
-.libPaths(c(lib, .libPaths()))
-install.packages(&quot;openxlsx2&quot;, lib = lib)
-install.packages(file.choose(), repos = NULL, type = &quot;source&quot;, lib = lib)
-</code></pre>
-<p>Add that path to <code>.libPaths()</code> in subsequent sessions too; the package does not modify <code>.Rprofile</code>.</p>
-<h2>Use</h2>
-<pre><code class="language-r">evanxlsx::write_xlsx(list(variant_info = df, id83 = df1), &quot;WES.xlsx&quot;)
+
+# 本地 tar.gz，同时补齐必要依赖 / Local source + dependencies
+remotes::install_local(file.choose(), dependencies = NA, upgrade = "never")</code></pre>
+<p>开发分支安装示例可将 ref 换为验收报告中的完整提交 SHA，以固定代码版本。<br>Replace ref with the full tested commit SHA from the validation report for a pinned installation.</p>
+<p><code>dependencies = NA</code> 安装必要的 Depends/Imports/LinkingTo，不安装全部 Suggests。<code>upgrade = "never"</code> 避免顺带升级已满足要求的包；依赖仍须满足最低版本。基础 R 的 <code>install.packages(..., repos = NULL)</code> 不会下载缺失依赖。没有网络时，需要提前准备 R、依赖和系统组件；本包不是完整离线环境。<br>NA selects required dependency fields, not all optional Suggests. Existing dependencies must still meet minimum versions. Base install.packages with repos=NULL does not download dependencies. Offline use requires R and dependencies to be prepared separately.</p>
+<h2>2. 日常导出 / Everyday exports</h2>
+<pre><code>evanxlsx::write_xlsx(list(var = df, id83 = df1), "WES.xlsx")
 
 evanxlsx::write_xlsx(
-  list(variant_info = df, id83 = df1),
-  &quot;WES_Arial.xlsx&quot;,
-  font = &quot;Arial&quot;, font_size = 12, align = &quot;left&quot;
-)
-</code></pre>
-<p>Defaults: Times New Roman, 11 pt, centered body and bold centered headers, blank NA cells,
-frozen first row, three horizontal rules, no grid lines, wrapping, automatic widths capped at 40,
-and no overwrite. <code>align</code> accepts <code>center</code>, <code>left</code>, <code>right</code>, or <code>justify</code>.
-<code>header_align</code> separately controls headers. <code>font</code> also accepts <code>SimSun</code> or its Chinese alias.
-<code>valign</code> accepts <code>center</code>, <code>top</code>, or <code>bottom</code>; <code>font_size</code> accepts 1–409 pt.</p>
-<p>Set <code>widths</code> to <code>&quot;auto&quot;</code>, one numeric width or one width per column. <code>max_width</code> limits automatic
-widths. <code>freeze</code>, <code>freeze_first_col</code>, <code>filter</code>, <code>three_line</code>, <code>grid_lines</code>, and <code>wrap</code> toggle
-those individual features. Set <code>overwrite = TRUE</code> only to replace the whole workbook;
-a unique <code>.bak</code> copy of the previous file is retained first. This is not sheet append/merge.</p>
-<p>Session preferences:</p>
-<pre><code class="language-r">options(evanxlsx.font = &quot;Arial&quot;, evanxlsx.font_size = 12, evanxlsx.align = &quot;left&quot;)
-</code></pre>
-<p>The selected font name is recorded, not installed or embedded. Missing fonts/glyphs may be
-substituted by Excel or the operating system. Short text may not visibly change under justification.</p>
-<h2>Data handling</h2>
-<p>NA/NaN become value-less cells. Literal <code>&quot;NA&quot;</code>, <code>&quot;001&quot;</code>, long character IDs and <code>&quot;=1+1&quot;</code> remain
-text, not numbers or formulas. Factors use their labels. Dates/times retain formatting;
-Excel date-time cells do not store a timezone. Inputs are not modified in place.
-Invalid sheet names, nested columns, infinite values and unsupported classes are rejected.</p>
-<h2>Reproduce the tests</h2>
-<pre><code class="language-sh">Rscript tools/check.R
+  list(var = df, id83 = df1), "WES_Arial.xlsx",
+  font = "Arial", font_size = 12,
+  align = "left", header_align = "center"
+)</code></pre>
+<table><tr><th>参数 / Parameter</th><th>默认值及含义 / Default and meaning</th></tr>
+<tr><td>font / font_size</td><td>Times New Roman / 11 pt；全表统一字体，宋体可用 SimSun 或“宋体”。Uniform font; no character-by-character mixing.</td></tr>
+<tr><td>align / header_align</td><td>center / center；数据和表头分别设置，支持 center、left、right、justify。Body and header are independent.</td></tr>
+<tr><td>valign / wrap</td><td>center / TRUE；垂直对齐和文本换行。Vertical alignment and wrapping.</td></tr>
+<tr><td>freeze / freeze_first_col</td><td>TRUE / FALSE；冻结首行，可同时冻结首列。Freeze header and optionally first column.</td></tr>
+<tr><td>three_line / grid_lines</td><td>TRUE / FALSE；三线表、隐藏网格线。Three-line borders, hidden grid.</td></tr>
+<tr><td>widths / max_width</td><td>auto / 40；自动列宽或固定 widths=16。Automatic widths or a fixed width.</td></tr>
+<tr><td>filter / overwrite</td><td>FALSE / FALSE；可选筛选，默认禁止覆盖。Optional filter; overwrite disabled by default.</td></tr>
+<tr><td>collect / max_rows</td><td>FALSE / 1048575；显式执行查询、每个 sheet 数据行数上限。Explicit query execution and per-sheet row cap.</td></tr></table>
+<p>NA/NaN/后端空值写成无值单元格，文本“NA”不替换。已有文件明确 overwrite=TRUE 才替换，且先保留独立备份；这是替换整个工作簿，不是追加 sheet。字体不安装、不嵌入，目标电脑缺少字体时可能替代显示。换行不保证行高自动调整。<br>Missing values become value-less cells; literal "NA" is retained. Explicit overwrite backs up and replaces the whole workbook, not appending sheets. Fonts are not embedded or installed. Wrapping does not guarantee row autofit.</p>
+<h2>3. 可选后端 / Optional backends</h2>
+<p>普通导出只直接依赖 openxlsx2，不强制安装 duckplyr、Polars、Python 或 Arrow。只安装实际需要的后端。<br>Ordinary exports directly depend only on openxlsx2. Install optional engines only when needed.</p>
+<pre><code>install.packages("duckplyr")
+
+# Polars 安装会话 / Polars installation session
+Sys.setenv(NOT_CRAN = "true")
+install.packages("polars", repos = "https://community.r-multiverse.org")
+
+# 不同后端混合写出 / Mixed backends
+q_duck &lt;- duckplyr::as_duckdb_tibble(df, prudence = "stingy")
+p_df &lt;- polars::as_polars_df(df1)
+p_query &lt;- p_df$lazy()
+evanxlsx::write_xlsx(
+  list(duck = q_duck, polars = p_df, query = p_query),
+  "mixed.xlsx", collect = TRUE, max_rows = 100000
+)</code></pre>
+<p>任何 duckplyr 对象以及 Polars LazyFrame 都要求 collect=TRUE；已计算的 Polars DataFrame 不要求。也可在上游显式 collect 后再导出普通数据框。核心 R≥4.1.3 与可选后端要求分开：当前 Polars 需 R≥4.3。适配范围为 duckplyr≥1.2.1，Polars≥1.16.0 且&lt;2.0.0；2.x 未重新验证前报错，不悄悄放行。<br>All duckplyr frames and Polars LazyFrames require collect=TRUE; eager Polars DataFrames do not. Core and backend requirements differ. The adapter rejects Polars 2.x pending separate validation.</p>
+<h2>4. 行数、执行与内存 / Rows, execution and memory</h2>
+<p>max_rows 为每个 sheet 的数据行数预算，不含表头；默认是 Excel 容量上限，不是经验性的“安全内存值”。可设 0 导出仅表头空表。延迟查询在后端对最终结果加 head/LIMIT(max_rows+1)，执行一次，不另跑完整 count。超限直接报错，不写截断文件，不覆盖原文件。<br>The default row cap is Excel capacity, not a safe-memory promise. Lazy queries collect one final bounded result with one extra detection row. Excess rows cause an error, never silent truncation.</p>
+<p>这个限制不约束查询内部连接、排序、扫描的资源，也不约束返回文本总大小。逐 sheet 转换减少临时副本，但工作簿仍在内存中，不是流式 XLSX 写出。需要稳定行序时，请在上游显式排序。<br>A row cap does not bound query-engine work, memory or total text size. Per-sheet conversion is not streaming XLSX. Sort upstream when row order matters.</p>
+<h2>5. 类型保护 / Type protection</h2>
+<table><tr><th>输入 / Input</th><th>处理 / Policy</th></tr>
+<tr><td>字符编号 / Character IDs</td><td>保持文本，保留前导零。Keep exact text and leading zeros.</td></tr>
+<tr><td>普通数字 / Ordinary numbers</td><td>保持数值，不把整张表转成字符。Remain numeric.</td></tr>
+<tr><td>Polars Int64/UInt64/UInt32</td><td>先转准确字符，再检查；全列非缺失整数均≤15位才写数值，否则整列文本。Check exact strings before numeric conversion.</td></tr>
+<tr><td>Polars Decimal</td><td>精确文本，不先降为 double。Exact text, no initial double conversion.</td></tr>
+<tr><td>Polars Datetime/Time</td><td>在 Polars 内转文本，避免先转 POSIXct 丢失纳秒；不是原生 Excel 日期时间或完整时区数据库往返。Cast to text inside Polars before R conversion.</td></tr>
+<tr><td>Date</td><td>保持日期。Preserve date representation.</td></tr>
+<tr><td>List/Struct/Array/Binary/Duration</td><td>明确报错，需上游主动展开或转换。Reject; explicit upstream conversion required.</td></tr>
+<tr><td>普通 R/duckplyr 的 integer64</td><td>需提前准确转为字符。Convert explicitly to exact character upstream.</td></tr></table>
+<p>已经在上游丢失的数值精度无法恢复。所有输入不会因排版而主动修改。先检查文件和参数，再检查对象元数据，最后执行必要查询；不会修改 duckplyr prudence，不在导出中安装软件。<br>Already-lost precision is not recoverable. File/options are checked before backend execution. Caller data and prudence are not intentionally modified.</p>
+<h2>6. 安装后的示例 / Installed examples</h2>
+<pre><code>source(system.file("examples", "basic.R", package = "evanxlsx"), encoding = "UTF-8")
+example_basic()
+
+source(system.file("examples", "backends.R", package = "evanxlsx"), encoding = "UTF-8")
+example_backends()
+
+utils::browseURL(system.file("guide", "usage.html", package = "evanxlsx"))</code></pre>
+<p>示例为确定性合成数据，不是真实实验数据。默认写入新的临时路径。<br>Examples contain deterministic synthetic data and default to fresh temporary paths.</p>
+<h2>7. 开发验收 / Reproduction</h2>
+<pre><code>Rscript tools/check.R
 Rscript tools/install_check.R
-</code></pre>
-<p>Install <code>openxlsx2</code>, <code>testthat</code>, <code>xml2</code>, <code>tibble</code> and <code>remotes</code> first. A local GitHub install
-check additionally needs secure authorization and <code>EVANXLSX_REF</code>; absent credentials/ref
-produce NOT_RUN for that route, never PASS. CI uses a short-lived read-only repository token.</p>
-<p>The matrix requests Linux/current R, Windows/current R, Apple Silicon macOS/current R,
-Intel macOS/current R, Linux/previous R, and Linux/R 4.1.3. Only completed successful jobs
-count as validated environments. Each job builds/checks the package, installs from a source
-folder, a local tarball and the exact private GitHub commit into isolated libraries,
-then tests each installed copy in a fresh R process.</p>
-<p><code>tools/fixtures.R</code> constructs 240 rows × 11 columns deterministically: Chinese and English,
-missing values, literal NA, empty strings, newlines, XML punctuation, 18-digit character IDs,
-factors, logicals, dates and timestamps. There is no random sampling and no research data.
-The 83 TEST_ID categories are synthetic, not mutation-signature channels. A separate
-10,000-row × 6-column export checks larger input. Full mode creates 12 workbooks covering
-three fonts and four alignments. XML assertions inspect font names, sizes, alignment and panes.
-Every source cell is checked by type. Timing is a single runner observation, not a benchmark ranking.</p>
-<p>Fresh <code>validation/local-*</code> and <code>validation/portable-*</code> directories retain CSV/RDS inputs,
-workbooks, installation logs, assertions and actual dependency versions. CSV uses <code>&lt;MISSING&gt;</code>;
-RDS is the type-preserving source. Automated structure checks are not manual visual acceptance
-in every Excel version. See the workflow associated with the exact code commit.</p>
-<h2>Sources</h2>
-<p><a href="https://janmarvin.github.io/openxlsx2/reference/wb_add_data.html">openxlsx2 data writing</a> ·
-<a href="https://janmarvin.github.io/openxlsx2/reference/base_font-wb.html">Fonts</a> ·
-<a href="https://janmarvin.github.io/openxlsx2/reference/wb_add_cell_style.html">Alignment</a> ·
-<a href="https://remotes.r-lib.org/reference/install_github.html">Private GitHub installation</a> ·
-<a href="https://cran.r-project.org/doc/manuals/r-release/R-admin.html">R installation manual</a></p>
-</section></html>
+R CMD INSTALL .
+Rscript tools/integration_check.R
+Rscript tools/dependency_check.R</code></pre>
+<p>后端集成任务必须真正安装并运行对应包，缺少即失败，不以跳过作为通过。依赖测试排除预装 site-library，先确认 openxlsx2 缺失；过旧版本场景使用明确标记的合成元数据，不冒充旧 openxlsx2 实现兼容测试。日志、环境、合成表和耗时写入新的 validation 子目录。<br>Dedicated backend tests never silently skip. Dependency tests exclude preinstalled site libraries. The outdated-version fixture is synthetic metadata, not an older implementation. Logs and outputs are retained in new validation subdirectories.</p>
+<h2>官方资料 / Official references</h2>
+<p><a href="https://stat.ethz.ch/R-manual/R-devel/library/utils/html/install.packages.html">R install.packages</a> · <a href="https://remotes.r-lib.org/reference/install_local.html">remotes install_local</a> · <a href="https://remotes.r-lib.org/reference/install_github.html">remotes install_github</a></p>
+<p><a href="https://duckplyr.tidyverse.org/articles/prudence.html">duckplyr prudence</a> · <a href="https://duckplyr.tidyverse.org/reference/collect.duckplyr_df.html">duckplyr collect</a></p>
+<p><a href="https://pola-rs.github.io/r-polars/vignettes/install.html">Polars installation</a> · <a href="https://pola-rs.github.io/r-polars/man/s3-as.data.frame.html">Polars conversion</a> · <a href="https://pola-rs.github.io/r-polars/man/lazyframe__collect_schema.html">Polars schema</a></p>
+</main></html>
