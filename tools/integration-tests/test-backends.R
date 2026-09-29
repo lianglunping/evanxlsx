@@ -37,6 +37,7 @@ number_at <- function(path, address) {
 test_that("real backends and mixed sheets retain all fixture values and styles", {
   q <- make_duck()
   before <- serialize(fixture, NULL)
+  polars_before <- as.data.frame(pdf)
   f <- backend_export(list(ordinary = fixture, duck = q, polars = pdf, lazy = pdf$lazy()),
                        "mixed", collect = TRUE, max_rows = nrow(fixture), font = "Arial", font_size = 12)
   expected <- values_xml(f, 1L)
@@ -49,7 +50,7 @@ test_that("real backends and mixed sheets retain all fixture values and styles",
   }
   expect_identical(serialize(fixture, NULL), before)
   expect_error(nrow(q), "materializ|pruden|stingy|prohibit|large")
-  expect_identical(as.data.frame(pdf), fixture)
+  expect_identical(as.data.frame(pdf), polars_before)
 })
 
 test_that("all duckplyr prudence levels and Polars lazy require permission", {
@@ -89,7 +90,10 @@ test_that("collection uses one bounded execution without mutating input queries"
   })
   meta <- getFromNamespace(".inspect_sheet", "evanxlsx")(pdf, "polars", "s", 24L)
   meta$kind <- "polars_lazy"
-  expect_identical(materialize(fake, meta, "s", 24L), fixture)
+  actual <- materialize(fake, meta, "s", 24L)
+  # Date may use integer or double storage; preserve its Date class and exact day values.
+  expect_equal(actual, fixture, tolerance = 0)
+  expect_s3_class(actual$Day, "Date")
   expect_identical(calls, list(25L, "in-memory"))
 })
 
@@ -161,4 +165,28 @@ test_that("Duration and Binary are explicitly rejected", {
   expect_error(new_export(x$lazy(), collect = TRUE), "unsupported Polars type Duration")
   b <- pl$DataFrame(s = c("ab", "cd"))$with_columns(pl$col("s")$cast(pl$Binary))
   expect_error(new_export(b), "unsupported Polars type Binary")
+})
+
+test_that("Time and UTC datetime retain Polars textual precision", {
+  v <- c("2026-09-29 01:02:03.123456789", NA_character_)
+  x <- pl$DataFrame(value = v)$with_columns(
+    pl$col("value")$str$to_datetime(time_unit = "ns", time_zone = "UTC"))$select(
+      pl$col("value")$cast(pl$Time)$alias("clock"), pl$col("value")$alias("utc"))
+  expected <- as.data.frame(x$with_columns(pl$all()$cast(pl$String)))
+  f <- backend_export(x, "time_utc")
+  expect_identical(text_at(f, "A2"), "01:02:03.123456789")
+  expect_identical(text_at(f, "B2"), expected$utc[1])
+  expect_match(text_at(f, "B2"), "123456789", fixed = TRUE)
+})
+
+test_that("installed bilingual examples run without access to source-tree fixtures", {
+  env <- new.env(parent = globalenv())
+  sys.source(system.file("examples", "basic.R", package = "evanxlsx"), env)
+  sys.source(system.file("examples", "backends.R", package = "evanxlsx"), env)
+  f <- file.path(out, "installed_basic.xlsx")
+  g <- file.path(out, "installed_backends.xlsx")
+  expect_no_error(env$example_basic(f))
+  expect_no_error(env$example_backends(g))
+  expect_true(file.exists(f))
+  expect_true(file.exists(g))
 })

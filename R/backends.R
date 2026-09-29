@@ -119,6 +119,8 @@
     x <- x$with_columns(polars::pl$col(temporal)$cast(polars::pl$String))
   }
   d <- as.data.frame(x, int64 = "character", decimal = "character")
+  # Polars Null converts to an R list-column; its schema guarantees all values are missing.
+  for (j in which(meta$types == "Null")) d[[j]] <- rep(NA, nrow(d))
   text_columns <- c(temporal, meta$names[meta$types == "Decimal"])
   # Integer strings are exact. Only values of at most 15 decimal digits become numbers.
   for (j in which(meta$types %in% c("Int64", "UInt64", "UInt32"))) {
