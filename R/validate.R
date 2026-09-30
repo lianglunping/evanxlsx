@@ -28,6 +28,10 @@
 # Called only on an already materialized, ordinary R data frame.
 .validate_frame <- function(d, label) {
   d <- as.data.frame(d)
+  if (.row_names_info(d, type = 1L) > 0L) {
+    warning(paste0("Sheet '", label, "': custom row names are not exported; ",
+                   "move important IDs to an explicit column before exporting."), call. = FALSE)
+  }
   for (j in seq_along(d)) {
     v <- d[[j]]
     column_label <- paste0(label, "$", names(d)[j])

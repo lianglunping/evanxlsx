@@ -118,11 +118,11 @@
   datetime <- meta$names[meta$types == "Datetime"]
   clock <- meta$names[meta$types == "Time"]
   if (length(datetime)) {
-    x <- x$with_columns(polars::pl$col(datetime)$cast(polars::pl$String))
+    x <- x$with_columns(polars::pl$nth(which(meta$types == "Datetime") - 1L)$cast(polars::pl$String))
   }
   if (length(clock)) {
     # Request all nine fractional digits rather than a default display format.
-    x <- x$with_columns(polars::pl$col(clock)$dt$to_string("%H:%M:%S%.9f"))
+    x <- x$with_columns(polars::pl$nth(which(meta$types == "Time") - 1L)$dt$to_string("%H:%M:%S%.9f"))
   }
   d <- as.data.frame(x, int64 = "character", decimal = "character")
   # Polars Null converts to an R list-column; its schema guarantees all values are missing.

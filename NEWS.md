@@ -1,3 +1,17 @@
+# evanxlsx 0.2.1
+
+- Select Polars temporal columns by position, preserving literal wildcard/regex-like names.
+- Warn when custom row names will not be written; never guess an ID column name.
+- Isolate numeric/date/datetime/string-number/border formatting defaults and restore options.
+- Ignore max_width entirely when widths is numeric, as documented.
+- On a final-copy failure, try to restore the original or remove a new partial target;
+  retain the complete new workbook and any valid backup, reporting their locations.
+  This remains a single-writer, best-effort recovery policy, not a transaction.
+- Remove obsolete Python packaging/static-audit tools. R CMD build is the package builder.
+- Read the CI installation archive version from DESCRIPTION; keep one maintained HTML guide.
+- Public arguments and mandatory dependencies are unchanged. Formatting/rowname warnings
+  above are deliberate behavior changes. Old validation reports describe old versions only.
+
 # evanxlsx 0.2.0
 
 - Validate file/options before forcing input. Convert one worksheet at a time.

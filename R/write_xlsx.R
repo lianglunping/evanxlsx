@@ -42,7 +42,6 @@ write_xlsx <- function(
   .check_string(file, "file")
   .check_string(font, "font")
   .check_number(font_size, "font_size", 1, 409)
-  .check_number(max_width, "max_width", 1, 250)
   align <- .check_choice(align, c("center", "left", "right", "justify"), "align")
   header_align <- .check_choice(
     header_align, c("center", "left", "right", "justify"), "header_align"
@@ -56,6 +55,7 @@ write_xlsx <- function(
   if (max_rows != trunc(max_rows)) stop("`max_rows` must be a whole number.", call. = FALSE)
   max_rows <- as.integer(max_rows)
   auto_width <- identical(widths, "auto")
+  if (auto_width) .check_number(max_width, "max_width", 1, 250)
   if (!auto_width) {
     if (!is.numeric(widths) || !length(widths) || any(!is.finite(widths)) ||
         any(widths < 1 | widths > 250)) {
@@ -96,8 +96,15 @@ write_xlsx <- function(
   }
 
   # Restore the caller's settings even when workbook creation fails.
-  old <- options(openxlsx2.minWidth = min(10, max_width),
-                 openxlsx2.maxWidth = max_width)
+  old <- options(openxlsx2.numFmt = NULL,
+                 openxlsx2.dateFormat = "yyyy-mm-dd",
+                 openxlsx2.datetimeFormat = "yyyy-mm-dd hh:mm:ss",
+                 openxlsx2.string_nums = FALSE,
+                 openxlsx2.borderColor = "black")
+  if (auto_width) {
+    old <- c(old, options(openxlsx2.minWidth = min(10, max_width),
+                          openxlsx2.maxWidth = max_width))
+  }
   on.exit(options(old), add = TRUE)
   wb <- openxlsx2::wb_workbook(creator = "evanxlsx")
   wb$set_base_font(font_name = font, font_size = font_size,
@@ -141,25 +148,15 @@ write_xlsx <- function(
 
   # Finish the new workbook before touching an existing output file.
   tmp <- tempfile(pattern = ".evanxlsx-", tmpdir = dirname(file), fileext = ".xlsx")
-  on.exit(unlink(tmp), add = TRUE)
+  remove_tmp <- TRUE
+  on.exit(if (remove_tmp) unlink(tmp), add = TRUE)
   wb$save(tmp, overwrite = FALSE)
   if (!file.exists(tmp) || is.na(file.info(tmp)$size) || file.info(tmp)$size == 0) {
     stop("Workbook creation did not produce a non-empty file.", call. = FALSE)
   }
-  backup <- NULL
-  if (file.exists(file)) {
-    if (!overwrite) stop("Output appeared during export; it was not overwritten.", call. = FALSE)
-    backup <- tempfile(pattern = paste0(basename(file), "."),
-                       tmpdir = dirname(file), fileext = ".bak")
-    if (!file.copy(file, backup, overwrite = FALSE)) {
-      stop("Could not back up the existing file; export was not replaced.", call. = FALSE)
-    }
-    message("Previous file backed up to: ", normalizePath(backup, winslash = "/"))
-  }
-  if (!file.copy(tmp, file, overwrite = overwrite)) {
-    detail <- if (is.null(backup)) "" else paste0(" Backup retained at: ", backup)
-    stop(paste0("Could not save the output; check permissions or close Excel.", detail),
-         call. = FALSE)
-  }
+  # Once complete, retain the new workbook when publication fails.
+  remove_tmp <- FALSE
+  .commit_file(tmp, file, overwrite)
+  remove_tmp <- TRUE
   invisible(normalizePath(file, winslash = "/", mustWork = TRUE))
 }

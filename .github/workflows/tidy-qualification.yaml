@@ -1,0 +1,41 @@
+name: Optional Tidy Polars qualification
+on:
+  push:
+    branches: ['fix/0.2.1-review']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  recipes:
+    name: tidy-${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, windows-latest]
+    env:
+      NOT_CRAN: 'true'
+    steps:
+      - uses: actions/checkout@v7
+        with: {persist-credentials: false}
+      - uses: r-lib/actions/setup-r@v2
+        with:
+          r-version: release
+          use-public-rspm: true
+      - name: Install optional workflow dependencies separately
+        shell: Rscript {0}
+        run: |
+          repos <- getOption('repos')
+          if (nzchar(Sys.getenv('RSPM'))) repos <- c(RSPM = Sys.getenv('RSPM'))
+          options(repos = c(multiverse = 'https://community.r-multiverse.org', repos))
+          install.packages(c('tidypolars', 'polars', 'dplyr', 'tidyr', 'stringr', 'openxlsx2'), Ncpus = 2)
+          install.packages('.', repos = NULL, type = 'source')
+      - name: Real backend recipes and compatibility limits
+        run: Rscript --vanilla tools/tidy_smoke.R
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: tidy-${{ matrix.os }}
+          path: validation/tidy-qualification/
+          retention-days: 30

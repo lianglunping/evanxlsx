@@ -11,91 +11,80 @@ write_xlsx(
   widths = "auto", max_width = 40,
   freeze = TRUE, freeze_first_col = FALSE,
   filter = FALSE, three_line = TRUE, grid_lines = FALSE,
-  overwrite = FALSE,
-  collect = FALSE,
-  max_rows = 1048575L
+  overwrite = FALSE, collect = FALSE, max_rows = 1048575L
 )
 }
 \arguments{
-\item{x}{A data.frame (including a tibble or data.table), a duckplyr data frame, an R Polars DataFrame/LazyFrame, or a non-empty named list mixing these objects. List order is sheet order.}
-\item{file}{Output .xlsx path. Its parent directory must already exist.}
-\item{sheet}{Sheet name for a single data.frame; ignored for lists. Default \code{"Sheet1"}.}
-\item{font}{One font for all cells. Default \code{"Times New Roman"}. The Chinese name for SimSun is accepted as an alias. No fonts are installed or embedded.}
-\item{font_size}{Font size in points, between 1 and 409. Default 11.}
-\item{align}{Body horizontal alignment: \code{"center"}, \code{"left"}, \code{"right"}, or \code{"justify"}.}
-\item{header_align}{Header horizontal alignment; same choices as \code{align}. Default \code{"center"}.}
-\item{valign}{Vertical alignment: \code{"center"}, \code{"top"}, or \code{"bottom"}.}
-\item{wrap}{Enable text wrapping. Default TRUE. No explicit row heights are imposed.}
-\item{widths}{\code{"auto"}, a single numeric width, or one numeric width per column. A vector must match every sheet's number of columns. Numeric values must be between 1 and 250.}
-\item{max_width}{Upper bound for automatic widths. Default 40. Ignored when \code{widths} is numeric.}
+\item{x}{A data.frame, tibble, duckplyr data frame, R Polars DataFrame/LazyFrame, or a non-empty named list mixing these objects. List names and order determine worksheets.}
+\item{file}{Output .xlsx path in an existing directory.}
+\item{sheet}{Sheet name for a single frame; ignored for lists.}
+\item{font}{One font for all cells. Default Times New Roman; the Chinese name for SimSun is accepted. Fonts are not installed or embedded.}
+\item{font_size}{Font size in points, from 1 to 409. Default 11.}
+\item{align}{Body horizontal alignment: center, left, right, or justify.}
+\item{header_align}{Header alignment, with the same choices. Default center.}
+\item{valign}{Vertical alignment: center, top, or bottom.}
+\item{wrap}{Enable text wrapping. Default TRUE; actual row autofit depends on the viewer.}
+\item{widths}{\code{"auto"}, one numeric width, or one width per column. Numeric values must be from 1 to 250; a vector must match every sheet.}
+\item{max_width}{Maximum automatic column width. Default 40. Completely ignored and not evaluated when widths is numeric.}
 \item{freeze}{Freeze the first row. Default TRUE.}
-\item{freeze_first_col}{Also freeze the first column. Default FALSE. Works independently of \code{freeze}.}
-\item{filter}{Add column filters. Default FALSE. No filter is added to a header-only sheet.}
-\item{three_line}{Draw top and bottom rules and a thin rule below the header. Default TRUE. Header-only tables have two outer rules.}
-\item{grid_lines}{Show on-screen worksheet grid lines. Default FALSE.}
-\item{collect}{Allow execution of duckplyr and Polars lazy queries. Default FALSE. All duckplyr frames require TRUE, even when cached.}
-\item{max_rows}{Maximum data rows per sheet; a whole number from 0 to 1048575. Default is Excel capacity, not a safe memory budget. Lazy queries fetch at most this limit plus one row; excess rows cause an error, never a truncated output.}
-\item{overwrite}{Default FALSE. When TRUE and the destination exists, keep a unique .bak copy before replacement.}
+\item{freeze_first_col}{Freeze the first column independently of freeze. Default FALSE.}
+\item{filter}{Add a header filter. Default FALSE; omitted for header-only tables.}
+\item{three_line}{Top and bottom rules with a thinner header-bottom rule. Default TRUE. Header-only tables have two rules.}
+\item{grid_lines}{Show worksheet grid lines. Default FALSE.}
+\item{overwrite}{Replace an existing whole workbook, first retaining a unique .bak copy. Default FALSE. This does not append sheets.}
+\item{collect}{Allow duckplyr or Polars lazy query execution. Default FALSE. All duckplyr frames require TRUE even if cached.}
+\item{max_rows}{Per-sheet data-row cap, an integer from 0 to 1048575. Default is Excel capacity minus header, not a safe memory budget. Lazy queries retrieve at most the cap plus one row; excess causes an error, never truncation.}
 }
 \value{The normalized output file path, invisibly.}
-\description{A small wrapper around \pkg{openxlsx2} for consistent exports. It writes a new workbook, rather than appending to or editing an existing workbook.}
+\description{A small wrapper around \pkg{openxlsx2} for consistent new-workbook exports.}
 \details{
-A single selected font and size are applied throughout; headers are bold.
-Actual glyph rendering depends on installed fonts and the spreadsheet application.
-\code{NA} and numeric \code{NaN} are exported as cells without values, not as
-\code{#N/A} errors or empty strings. Literal strings such as \code{"NA"}
-are retained. The original R objects are not modified.
+NA and NaN become value-less cells; literal NA strings are retained. Factors are
+exported as labels. Ordinary numeric, logical, character, Date and POSIXct/POSIXlt
+vectors are accepted. List/matrix columns, integer64 and other unsupported classes
+are rejected; convert explicitly first. Inf and -Inf must be handled upstream.
+Reserved openxlsx2 strings and XML-invalid text are rejected. Numeric integers
+with more than 15 digits trigger a precision warning; use character IDs before
+precision is lost. Ordinary formula-like strings remain text.
 
-Ordinary character, numeric, integer and logical columns, factors, Date and
-POSIXct/POSIXlt columns are supported. Factors are exported as labels, and
-POSIXlt is converted to POSIXct. List columns, matrix columns, integer64,
-complex vectors, formula classes and other unsupported classes are rejected.
-Infinite values must be handled explicitly. Character values reserved by
-openxlsx2 are rejected rather than silently altered. Dates use openxlsx2's
-normal date formatting. Excel date-time cells do not store a timezone;
-use an explicit character representation to preserve timezone information.
+Custom row names are not exported. A warning asks you to move important IDs into
+an explicit column; no column name is guessed. Caller data are not modified.
 
-Ordinary formula-like strings are written as text, not formulas. Large numeric
-integers may lose precision in Excel; a warning is issued. Store identifiers as
-character before any precision has been lost. The function does not round the
-input numeric data.
+The writer temporarily isolates openxlsx2.numFmt, dateFormat, datetimeFormat,
+string_nums and borderColor. Defaults are general numeric formatting,
+yyyy-mm-dd dates, yyyy-mm-dd hh:mm:ss datetimes, text-preserving character columns
+and black borders. Those options, and temporary automatic-width options, are
+restored on exit including errors. Other settings such as compression and page
+options are not reset. Session defaults for font, font_size and align may be
+set with the corresponding evanxlsx options. Header alignment is independent.
 
-Optional backends are installed separately; see the installed bilingual guide
-at \code{system.file("guide", "usage.html", package = "evanxlsx")}.
-The adapter uses metadata before query execution and does not change duckplyr
-prudence. Polars collection explicitly uses the in-memory engine.
-The row bound limits returned rows, not upstream joins, sorting, memory, or time.
-Unsupported nested/binary/Duration types fail; convert them explicitly.
-Polars Int64/UInt64 columns are converted to exact character vectors before
-range checks; columns containing more than 15 decimal digits remain text.
-Decimal, Datetime and Time columns remain text to avoid precision loss.
-Date columns remain dates. Data.frame integer64 columns still require explicit
-character conversion. Precision already lost before export cannot be recovered.
-Each sheet is converted separately, but the workbook is not a streaming writer.
+Optional backends must be installed separately. Metadata and output conditions
+are checked before query execution. Duckplyr prudence is not changed. Polars
+collection uses the in-memory engine; the cap limits returned rows, not joins,
+sorts, engine memory, total text size or time. Each worksheet is converted
+separately, but this is not a streaming XLSX writer.
 
-Automatic widths are openxlsx2 heuristics, not pixel-exact font measurements.
-Temporary width options are restored on exit, including on errors. Justification
-is most apparent in wrapped, multi-line text. Row-height autofitting depends on
-the spreadsheet application; adjust row heights in Excel when needed.
+Polars temporal columns are selected by position, not by interpreting column
+names. Int64/UInt64 columns are converted to exact strings before range checks;
+columns containing values over 15 decimal digits stay text. Decimal remains
+exact text. Datetime and Time remain text before R temporal conversion, with
+Time retaining nine fractional digits. This does not imply native Excel
+nanosecond storage or a full timezone-semantic round trip. Nested, binary and
+Duration columns require explicit conversion. Already-lost precision is unrecoverable.
 
-The new workbook is fully generated in a temporary file first. Explicit
-replacement preserves the previous destination in a unique .bak file. This is
-not a cross-platform transactional or concurrent-writer locking mechanism.
-Do not write to the same output path from multiple processes at once.
+A complete workbook is built before attempting the final file copy. On a final
+copy failure, restoring the original from its backup is attempted; a newly created
+partial target is removed when possible. The complete new workbook and valid
+backups are retained at paths reported by the error. Recovery itself may fail.
+This is a single-writer best-effort policy, not a transaction, crash-safety or
+concurrent-writer locking guarantee. Never write to one path concurrently.
 
-Session defaults can be set using \code{options(evanxlsx.font = "Arial",
-evanxlsx.font_size = 12, evanxlsx.align = "left")}. Explicit function arguments
-take precedence. These options do not change the header alignment default.
+The installed bilingual guide is available at
+\code{system.file("guide", "usage.html", package = "evanxlsx")}.
 }
-\seealso{\code{\link[openxlsx2:wb_add_data]{openxlsx2::wb_add_data}},
-\code{\link[openxlsx2:wb_add_cell_style]{openxlsx2::wb_add_cell_style}}}
+\seealso{\code{\link[openxlsx2:wb_add_data]{openxlsx2::wb_add_data}}}
 \examples{
 x <- data.frame(id = c("001", "002"), value = c(1, NA_real_))
 out <- tempfile(fileext = ".xlsx")
 write_xlsx(list(var = x, id83 = x), out)
-unlink(out)
-
-out <- tempfile(fileext = ".xlsx")
-write_xlsx(x, out, font = "Arial", font_size = 12, align = "left")
 unlink(out)
 }

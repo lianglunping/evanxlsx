@@ -1,55 +1,38 @@
-<!doctype html>
-<html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>evanxlsx 0.2.0 · User guide / 使用指南</title>
-<style>body{font:16px/1.85 system-ui,sans-serif;max-width:940px;margin:auto;padding:24px;color:#25313e;background:#fafbfc}h1{line-height:1.3}h2{margin-top:2em;border-bottom:1px solid #cbd3dd}pre{overflow:auto;background:#edf1f6;padding:18px;border-radius:8px;font:14px/1.65 ui-monospace,monospace}td,th{padding:8px;text-align:left;border-bottom:1px solid #cbd3dd}table{border-collapse:collapse;width:100%}a{color:#176784}.note{border-left:4px solid #52748e;padding:10px 16px;background:#edf3f8}</style><main>
-<h1>evanxlsx 0.2.0</h1><p>一个 Excel 导出函数，连接普通 R、duckplyr 和 R Polars。<br>One Excel writer for ordinary R data frames, duckplyr and R Polars.</p>
-<p class="note">实际验收状态请查看配套 validation/STATUS_0.2.0.md 和日志。本指南不代表测试已经通过。<br>Consult the version-specific validation report and logs for actual acceptance status.</p>
-<h2>1. 安装与依赖 / Installation</h2>
-<pre><code>install.packages("remotes")
-remotes::install_github(
-  "lianglunping/evanxlsx", ref = "feature/0.2.0-backends",
-  dependencies = NA, upgrade = "always"
-)
-# 本地 tar.gz，并解析必要依赖 / Local archive plus dependency resolution
-remotes::install_local(file.choose(), dependencies = NA, upgrade = "always")</code></pre>
-<p>私有仓库需要在本机配置读取凭据，不要把凭据发到会话或写入代码仓库。验收后可将 ref 换为报告中的完整提交 SHA 固定版本。<br>Private access needs a local read credential. Do not share or commit credentials. Pin ref to the tested commit SHA in the report for reproducibility.</p>
-<p><b>dependencies=NA</b> 只选择必要的 Depends/Imports/LinkingTo，不安装全部可选后端或测试包。<b>upgrade="always"</b> 允许更新解析到的必要依赖，可能更新已经满足最低版本的依赖；不是更新整个 R 包库。实测 <b>upgrade="never" 不会修复已经安装但过旧的依赖</b>，因此不能作为无条件的一键安装推荐。受控环境中先确认依赖版本，再使用 never 固定现有依赖。<br>NA selects required dependency fields. Always allows resolved dependencies to update, including those already satisfying minima, but is not a full-library update. Never failed the installed-but-outdated dependency fixture; use it only after confirming dependency versions.</p>
-<p>基础 R 的 install.packages(..., repos=NULL) 不会下载缺失依赖。安装器负责依赖；write_xlsx() 不安装或更新软件。不联网时必须提前准备 R、依赖和系统组件，这不是完整离线环境。升级已加载的包后应重启 R。<br>Base install.packages with repos=NULL does not download dependencies. Export never installs software. Offline use requires pre-provisioned R and dependencies. Restart R after upgrading loaded packages.</p>
-<h2>2. 日常调用 / Everyday use</h2>
-<pre><code>evanxlsx::write_xlsx(list(var = df, id83 = df1), "WES.xlsx")
-evanxlsx::write_xlsx(df, "Arial.xlsx", font = "Arial",
-                     font_size = 12, align = "left", header_align = "center")</code></pre>
-<table><tr><th>参数 / Parameter</th><th>默认及用途 / Default and purpose</th></tr><tr><td>font / font_size</td><td>Times New Roman / 11 pt；全表统一，可改 Arial 或 SimSun/宋体。Uniform font throughout.</td></tr><tr><td>align / header_align</td><td>center / center；分别控制数据与表头，支持 center/left/right/justify。Independent body/header alignment.</td></tr><tr><td>valign / wrap</td><td>center / TRUE；垂直对齐、换行。Vertical alignment and wrapping.</td></tr><tr><td>freeze / freeze_first_col</td><td>TRUE / FALSE；冻结首行，可加首列。Freeze header and optionally first column.</td></tr><tr><td>widths / max_width</td><td>auto / 40；也可固定 widths=16。Automatic or fixed widths.</td></tr><tr><td>three_line / grid_lines</td><td>TRUE / FALSE；三线表，隐藏网格线。Three-line borders, hidden grid.</td></tr><tr><td>filter / overwrite</td><td>FALSE / FALSE；可选筛选，默认禁止覆盖。Optional filtering, no overwrite by default.</td></tr><tr><td>collect / max_rows</td><td>FALSE / 1048575；显式执行查询、每个 sheet 的数据行数上限。Query permission and row cap.</td></tr></table>
-<p>NA/NaN/后端空值变为空白无值单元格，文本“NA”保留。overwrite=TRUE 先备份后替换整个工作簿，不是追加 sheet。不安装或嵌入字体；缺字体时显示可能替代。换行不保证 Excel 自动调整行高。<br>Missing values become value-less cells; literal NA remains text. Explicit overwrite preserves a backup and replaces the whole workbook. Fonts are not installed or embedded. Wrapping is not guaranteed row autofit.</p>
-<h2>3. 可选后端 / Optional backends</h2>
-<pre><code>install.packages("duckplyr")
-Sys.setenv(NOT_CRAN = "true")  # Polars 安装会话 / Installation session
-install.packages("polars", repos = "https://community.r-multiverse.org")
+<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>evanxlsx 0.2.1 | 使用指南</title>
+<style>body{max-width:920px;margin:auto;padding:24px;font:16px/1.8 system-ui,sans-serif;color:#243344;background:#fafbfd}h1,h2{line-height:1.4}h2{margin-top:2em}pre{background:#edf1f5;padding:16px;overflow:auto;font:14px/1.65 monospace;border-radius:8px}table{border-collapse:collapse;width:100%}td,th{text-align:left;padding:9px;border-bottom:1px solid #ccd4dd}a{color:#155c8e}.note{border-left:4px solid #667c95;padding:10px 16px;background:#eef2f6}</style>
+<h1>evanxlsx 0.2.1</h1><p>中文使用指南 / English usage guide<br>一个导出函数；数据处理与Excel排版分离。One exporter; data transformation stays upstream.</p>
+<p class="note">实际测试状态以本版 validation/STATUS_0.2.1.md 及日志为准。版本说明不等于测试结果。Consult version-specific validation records, not this guide, for actual acceptance.</p>
+<h2>安装 / Installation</h2><pre>install.packages("remotes")
+remotes::install_github("lianglunping/evanxlsx",
+                        dependencies = NA, upgrade = "always")
+# 本地 R 构建包 / Local R-built archive
+remotes::install_local(file.choose(), dependencies = NA, upgrade = "always")</pre>
+<p>私有仓库需要本机读取凭据。NA只解析必要依赖，不安装全部可选后端；always可能更新相关依赖。研究项目需固定环境时，先在项目包库中管理依赖版本，不能把固定本包提交等同于固定依赖。离线安装需要事先准备R与依赖。导出时不安装软件。<br>Private access needs a local credential. NA resolves required dependencies; always permits dependency updates. A pinned package commit does not pin dependencies. Offline use needs pre-provisioned R/dependencies. Export never installs software.</p>
+<h2>日常导出 / Everyday export</h2><pre>evanxlsx::write_xlsx(list(var = df, id83 = df1), "WES.xlsx")
+evanxlsx::write_xlsx(df, "Arial.xlsx",
+                     font = "Arial", font_size = 12, align = "left")</pre>
+<table><tr><th>参数</th><th>默认 / Default</th><th>用途 / Meaning</th></tr><tr><td>font / font_size</td><td>Times New Roman / 11</td><td>全表统一；可设Arial、SimSun/宋体。Uniform font.</td></tr><tr><td>align / header_align</td><td>center / center</td><td>分别控制正文与表头；center/left/right/justify。</td></tr><tr><td>valign / wrap</td><td>center / TRUE</td><td>垂直对齐与换行。Vertical alignment and wrapping.</td></tr><tr><td>freeze / freeze_first_col</td><td>TRUE / FALSE</td><td>首行/首列冻结。Freeze row/column.</td></tr><tr><td>widths / max_width</td><td>auto / 40</td><td>固定widths=16时完全忽略max_width。Fixed widths ignore max_width.</td></tr><tr><td>three_line / grid_lines</td><td>TRUE / FALSE</td><td>三线表/网格线。Borders/grid.</td></tr><tr><td>filter / overwrite</td><td>FALSE / FALSE</td><td>筛选与整工作簿替换。Filter/whole-workbook replacement.</td></tr><tr><td>collect / max_rows</td><td>FALSE / 1048575</td><td>后端执行许可与数据行数预算。Query permission/returned rows.</td></tr></table>
+<h2>数据规则 / Data rules</h2><p>NA和NaN写为空白无值单元格，文本“NA”不变；字符编号保持文本。自定义行名不导出并给警告。重要ID请明确放入列，例如：<br>Missing values become value-less cells; literal NA is retained. Custom row names are omitted with a warning. Make important IDs explicit:</p><pre>df &lt;- tibble::rownames_to_column(df, var = "Gene_ID")</pre>
+<p>0.2.1临时固定openxlsx2的numFmt、dateFormat、datetimeFormat、string_nums、borderColor为普通数值、yyyy-mm-dd日期、yyyy-mm-dd hh:mm:ss日期时间、保留字符、黑色边框。退出时恢复这些选项；不是清空全部options。压缩和页面等其他设置不在此约定范围。<br>Relevant formatting defaults are locally isolated and restored, not all global options. Other options such as compression/page setup remain outside this contract.</p>
+<h2>duckplyr与Polars / Optional backends</h2><pre>install.packages("duckplyr")
+Sys.setenv(NOT_CRAN = "true")
+install.packages("polars", repos = c("https://community.r-multiverse.org",
+                                    "https://cloud.r-project.org"))
 
-q_duck &lt;- duckplyr::as_duckdb_tibble(df, prudence = "stingy")
-p_df &lt;- polars::as_polars_df(df1)
-p_query &lt;- p_df$lazy()
-evanxlsx::write_xlsx(
-  list(duck = q_duck, polars = p_df, query = p_query),
-  "mixed.xlsx", collect = TRUE, max_rows = 100000
-)</code></pre>
-<p>普通导出只直接依赖 openxlsx2；没有强制安装 Python、Arrow 或所有后端。所有 duckplyr 对象及 Polars LazyFrame 要求 collect=TRUE；已计算的 Polars DataFrame 不要求。也可上游显式 collect。核心 R≥4.1.3，可选 Polars 当前要求 R≥4.3；适配 duckplyr≥1.2.1、Polars≥1.16.0且&lt;2.0.0，2.x 待重新验证。<br>Ordinary export directly depends only on openxlsx2. All duckplyr frames and Polars LazyFrames need collect=TRUE; eager Polars frames do not. Core and optional backend R requirements differ. Polars 2.x is rejected pending revalidation.</p>
-<h2>4. 规模与类型保护 / Size and types</h2>
-<p>max_rows 是每个 sheet 的数据行数预算，不含表头，0 表示只允许空表。默认1048575是 Excel 硬限制，不是安全内存值。延迟查询对最终结果取至多 max_rows+1 行，执行一次，不先跑完整 count；超限报错，不截断。它不限制连接、排序、扫描的内部内存或运行时间。逐 sheet 转换不等于流式 XLSX。要求稳定顺序时请先排序。<br>The row cap bounds returned rows, not query-engine resources. Lazy collection uses one bounded final query, never a separate full count. Over-limit exports fail without truncation. Per-sheet conversion is not streaming XLSX. Sort upstream for stable order.</p>
-<table><tr><th>类型 / Type</th><th>规则 / Policy</th></tr><tr><td>字符编号 / Character IDs</td><td>准确文本，保留前导零。Exact text with leading zeros.</td></tr><tr><td>普通数字 / Ordinary numbers</td><td>保持数值。Remain numeric.</td></tr><tr><td>Polars Int64/UInt64/UInt32</td><td>先准确转字符再检查；全列非缺失整数≤15位才写为数值，否则整列文本。Exact-string range checks precede conversion.</td></tr><tr><td>Polars Decimal</td><td>保持精确文本，不先转 double。Exact text.</td></tr><tr><td>Polars Datetime/Time</td><td>在 Polars 内先转文本以避免 POSIXct 转换损失；不等于原生 Excel 日期时间或完整时区语义往返。Text before R temporal conversion.</td></tr><tr><td>Date</td><td>保持日期。Remain dates.</td></tr><tr><td>List/Struct/Array/Binary/Duration</td><td>报错，要求主动展开或转换。Explicit conversion required.</td></tr><tr><td>普通 R/duckplyr integer64</td><td>请上游准确转为字符。Convert explicitly upstream.</td></tr></table>
-<p>上游已经丢失的精度无法恢复。先检查输出条件和参数，再检查元数据，最后执行查询；不改 duckplyr prudence。工作簿不是并发写入锁，勿多个进程同时写同一个路径。<br>Already-lost precision is unrecoverable. Output checks precede input evaluation; prudence is not changed. Do not concurrently write the same path.</p>
-<h2>5. 安装后的中英文示例 / Installed examples</h2>
-<pre><code>source(system.file("examples", "basic.R", package = "evanxlsx"), encoding = "UTF-8")
+evanxlsx::write_xlsx(list(duck = duck_result, polars = polars_query),
+                     "backend.xlsx", collect = TRUE, max_rows = 100000)</pre>
+<p>所有duckplyr对象及Polars LazyFrame需collect=TRUE；DataFrame不需要。限制针对最终结果，最多取上限+1行检测，超限报错而非截断。查询内部排序/连接资源不受行数限制。核心R≥4.1.3与后端要求分开；Polars≥1.16.0且&lt;2.0.0。逐sheet转换不是流式XLSX。<br>Lazy execution is explicit and bounded by returned rows, not engine resource use. Core and optional-backend compatibility differ; this is not streaming XLSX.</p>
+<p>Polars时间列按已知位置选择，不解释列名中的*或正则字符。长整数先保留准确字符再决定数值转换；Decimal保留文本。Time明确保留九位小数秒；Datetime保留文本，不声称原生Excel可存储全部纳秒/时区语义。嵌套、二进制、Duration需上游显式转换。已损失的精度不能恢复。<br>Temporal columns are selected by position. Exact text protects wide integers, Decimal and time precision. Unsupported complex types require upstream conversion.</p>
+<h2>文件保护 / File protection</h2><p>默认不覆盖。明确overwrite=TRUE时先保留.bak；新工作簿完成后才尝试最终复制。复制失败时尽力恢复旧目标，或删除新残缺目标；完整新工作簿及有效备份保留，位置在错误信息中。恢复也可能失败，请检查提示。不是并发锁或断电安全事务；不要多进程写同一路径。<br>Explicit overwrite backs up first. Failed publication attempts recovery and retains the complete new workbook. Recovery may fail; follow the error paths. No transactional/crash-safety/concurrent-writer guarantee.</p>
+<h2>安装后帮助 / Installed help</h2><pre>?evanxlsx::write_xlsx
+source(system.file("examples", "basic.R", package = "evanxlsx"), encoding = "UTF-8")
 example_basic()
-source(system.file("examples", "backends.R", package = "evanxlsx"), encoding = "UTF-8")
-example_backends()
-utils::browseURL(system.file("guide", "usage.html", package = "evanxlsx"))</code></pre>
-<p>确定性合成数据，不是真实实验数据；默认新临时路径。<br>Deterministic synthetic fixtures, with fresh temporary output paths by default.</p>
-<h2>6. 复现与证据 / Reproduction</h2>
-<pre><code>Rscript tools/check.R
+utils::browseURL(system.file("guide", "usage.html", package = "evanxlsx"))</pre>
+<p>默认示例写新临时路径，均为合成数据。字体仍需目标电脑具备，文字换行不保证原生Excel自动行高。<br>Synthetic examples use new temporary outputs. Fonts must exist on the viewing computer; row autofit is application-dependent.</p>
+<h2>构建与测试 / Build and check</h2><pre>Rscript tools/check.R
 Rscript tools/install_check.R
-# 安装 R 构建的 tar.gz 后 / After installing the R-built archive
+# 安装生成的源码包后 / After installing the generated archive
 Rscript tools/integration_check.R
 Rscript tools/integration_check.R --large
-Rscript tools/dependency_check.R</code></pre>
-<p>专门的后端任务必须实际运行，不允许缺依赖时跳过。大表独立测试，避免每个平台重复大规模工作。依赖测试排除预装包库；过旧版本场景是明确标记的合成元数据，不是假冒的旧版功能实现。报告区分核心、后端、依赖和较大表格的验收范围。<br>Dedicated backend tests cannot pass by skipping. The larger case is tested separately. Dependency tests exclude preinstalled libraries; the outdated fixture is explicitly synthetic metadata, not an older implementation.</p>
-<h2>官方资料 / Official references</h2><p><a href="https://stat.ethz.ch/R-manual/R-devel/library/utils/html/install.packages.html">R install.packages</a> · <a href="https://remotes.r-lib.org/reference/install_local.html">remotes local</a> · <a href="https://remotes.r-lib.org/reference/install_github.html">remotes GitHub</a> · <a href="https://duckplyr.tidyverse.org/articles/prudence.html">duckplyr prudence</a> · <a href="https://pola-rs.github.io/r-polars/vignettes/install.html">R Polars install</a> · <a href="https://pola-rs.github.io/r-polars/man/s3-as.data.frame.html">Polars conversion</a></p></main></html>
+Rscript tools/dependency_check.R</pre><p>安装包仅由R CMD build生成。两个失效Python辅助工具已删除，Git保留历史。完整验收矩阵用于本次读写核心变更；不为减少执行时间删除已有测试。<br>R CMD build is the only package builder. Obsolete tools remain in Git history. Existing tests are retained.</p>
+<p>官方依据 / Primary references: <a href="https://pola-rs.github.io/r-polars/man/pl__nth.html">Polars nth</a> · <a href="https://janmarvin.github.io/openxlsx2/reference/openxlsx2_options.html">openxlsx2 options</a> · <a href="https://remotes.r-lib.org/reference/install_github.html">remotes installation</a></p></html>

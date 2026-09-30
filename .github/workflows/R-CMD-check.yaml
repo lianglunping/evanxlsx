@@ -1,7 +1,7 @@
 name: R-CMD-check
 on:
   push:
-    branches: [main, 'feature/0.2.0-backends']
+    branches: [main, 'fix/0.2.1-review']
     paths-ignore: ['validation/**']
   pull_request:
   workflow_dispatch:
@@ -60,7 +60,8 @@ jobs:
         if: matrix.backend
         shell: Rscript {0}
         run: |
-          archives <- Sys.glob('validation/local-*/evanxlsx_0.2.0.tar.gz')
+          version <- read.dcf('DESCRIPTION')[1, 'Version']
+          archives <- Sys.glob(paste0('validation/local-*/evanxlsx_', version, '.tar.gz'))
           stopifnot(length(archives) == 1L)
           install.packages(archives, repos = NULL, type = 'source')
       - name: Real duckplyr and Polars integration, with no skipped tests
