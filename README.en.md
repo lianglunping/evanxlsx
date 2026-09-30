@@ -1,32 +1,15 @@
 # evanxlsx
 
-[中文](README.md) · [Bilingual guide](inst/guide/usage.html)
+[中文](README.md) · [Exporter guide](inst/guide/usage.html) · [Optional data tools](inst/guide/data_tools.html)
 
-One consistent Excel writer. The only direct mandatory dependency is openxlsx2.
-Ordinary data.frames, tibbles, duckplyr and R Polars frames use the same entry point.
+Consistent Excel output plus four optional Polars data helpers. Excel-only use still directly requires only openxlsx2.
 
-```r
-evanxlsx::write_xlsx(list(var = df, id83 = df1), "WES.xlsx")
-evanxlsx::write_xlsx(df, "Arial.xlsx", font = "Arial", font_size = 12, align = "left")
-```
+- summarise_numeric: Tidy column/group selection; finite-data counts, mean/median/sample SD and linear quartiles.
+- flag_iqr: non-destructive fences and explicit reasons for unclassified observations.
+- separate_strict: literal delimiter, exact field counts, no silent dropping or padding.
+- assert_unique_keys: validate reshape keys without guessing an aggregation.
 
-Install with `remotes::install_github("lianglunping/evanxlsx", dependencies=NA, upgrade="always")`
-or `remotes::install_local(file.choose(), dependencies=NA, upgrade="always")`.
-Private access requires a local credential. Updating resolved required dependencies is allowed;
-use a separately controlled project library for frozen environments. Export never installs software.
-Base install.packages(repos=NULL) does not download missing dependencies.
+All four return native R Polars LazyFrames. Summaries/flags build expressions. Strict guards execute validation; lazy inputs require collect=TRUE. They are not snapshots of changing sources. Only small validation aggregates return to R; source/engine work may be large.
+NaN/null are missing, infinity invalidates group statistics with a visible count. Unsupported exact numeric types need explicit conversion. This is not a reimplementation of Tidy translation; compose with tidypolars.
 
-0.2.1 fixes literal temporal column selection, warns about custom row names, isolates relevant
-numeric/date/ID/border formatting options, and ignores max_width with fixed widths. Final-copy
-failure attempts original-file restoration or new-partial-target removal; it preserves the complete
-new workbook and valid backups. Recovery may itself fail and is not a transaction or a concurrent lock.
-Only R CMD build creates installation archives. Obsolete Python packaging/static-check scripts were
-removed; their history remains in Git. The installed guide is the single maintained HTML source.
-
-All duckplyr objects and Polars LazyFrames require collect=TRUE; max_rows is a returned-row limit,
-not an engine memory budget. Fonts are not embedded or installed. No automatic data repair, upload,
-append-to-existing-workbook operation or new data processing framework is included.
-See NEWS.md and the version-specific validation report for changes, tested commits and scope.
-
-Run `Rscript tools/check.R` for the native package check. Full acceptance is defined in the workflow.
-`system.file("guide", "usage.html", package="evanxlsx")` locates the installed bilingual guide.
+Install required dependencies via remotes (dependencies=NA). Optional functions need separately installed polars, rlang and tidyselect. No automatic installation during use; the repository remains private. See the version-specific validation record for tested commits and environments, not just the package version label.

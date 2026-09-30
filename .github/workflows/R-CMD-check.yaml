@@ -1,7 +1,7 @@
 name: R-CMD-check
 on:
   push:
-    branches: [main, 'fix/0.2.1-review']
+    branches: [main, 'feature/0.3.0-data-tools']
     paths-ignore: ['validation/**']
   pull_request:
   workflow_dispatch:
@@ -39,38 +39,43 @@ jobs:
         with:
           r-version: ${{ matrix.r }}
           use-public-rspm: true
-      - name: Install check dependencies and selected optional backends
+      - name: Install test dependencies
         shell: Rscript {0}
         run: |
           repos <- getOption('repos')
-          rspm <- Sys.getenv('RSPM')
-          if (nzchar(rspm)) repos <- c(RSPM = rspm)
-          repos <- c(repos, multiverse = 'https://community.r-multiverse.org')
-          options(repos = repos)
+          if (nzchar(Sys.getenv('RSPM'))) repos <- c(RSPM = Sys.getenv('RSPM'))
+          options(repos = c(repos, multiverse = 'https://community.r-multiverse.org'))
           core <- c('openxlsx2', 'testthat', 'xml2', 'tibble', 'remotes')
-          packages <- if (Sys.getenv('EVANXLSX_BACKEND_TEST') == 'true') c(core, 'duckplyr', 'polars') else core
+          optional <- c('duckplyr', 'polars', 'tidypolars', 'tidyselect', 'rlang', 'tidyr', 'stringr')
+          packages <- if (Sys.getenv('EVANXLSX_BACKEND_TEST') == 'true') c(core, optional) else core
           install.packages(packages, Ncpus = 2)
           stopifnot(all(vapply(packages, requireNamespace, logical(1), quietly = TRUE)))
           print(sessionInfo())
-      - name: Build and check core package
+      - name: Native build and core checks
         run: Rscript tools/check.R
-      - name: Three installation routes with core exports
+      - name: Source tar and private GitHub installation routes
         run: Rscript tools/install_check.R
-      - name: Install R-built package for dedicated integration
+      - name: Install R-built package for real backend tests
         if: matrix.backend
         shell: Rscript {0}
         run: |
-          version <- read.dcf('DESCRIPTION')[1, 'Version']
-          archives <- Sys.glob(paste0('validation/local-*/evanxlsx_', version, '.tar.gz'))
+          v <- read.dcf('DESCRIPTION')[1, 'Version']
+          archives <- Sys.glob(paste0('validation/local-*/evanxlsx_', v, '.tar.gz'))
           stopifnot(length(archives) == 1L)
           install.packages(archives, repos = NULL, type = 'source')
-      - name: Real duckplyr and Polars integration, with no skipped tests
+      - name: Existing exporter integration
         if: matrix.backend
         run: Rscript tools/integration_check.R
-      - name: Larger 10000-row by 72-column exports
+      - name: Optional data module with R reference comparisons
+        if: matrix.backend
+        run: Rscript tools/data_check.R
+      - name: Existing larger exports
         if: matrix.name == 'linux-release'
         run: Rscript tools/integration_check.R --large
-      - name: Retain exact Git source snapshot
+      - name: Previously qualified Tidy recipes
+        if: matrix.name == 'linux-release'
+        run: Rscript --vanilla tools/tidy_smoke.R
+      - name: Retain source identity
         if: always()
         shell: bash
         run: |
@@ -85,9 +90,11 @@ jobs:
             validation/local-*/
             validation/portable-*/
             validation/integration-*/
+            validation/data-*/
             validation/large-*/
+            validation/tidy-qualification/
             validation/source/
-          retention-days: 14
+          retention-days: 30
   dependencies:
     name: auto-dependencies-${{ matrix.os }}
     runs-on: ${{ matrix.os }}
@@ -106,7 +113,7 @@ jobs:
         with:
           r-version: release
           use-public-rspm: true
-      - name: Required dependency resolution from isolated user libraries
+      - name: Required dependency resolution without optional engines
         run: Rscript tools/dependency_check.R
       - uses: actions/upload-artifact@v7
         if: always()
@@ -117,4 +124,4 @@ jobs:
             validation/dependencies-*/*.txt
             validation/dependencies-*/*.csv
             validation/dependencies-*/*.xlsx
-          retention-days: 14
+          retention-days: 30

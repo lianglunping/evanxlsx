@@ -1,0 +1,59 @@
+<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>evanxlsx 0.3.0 可选数据工具</title><style>body{font:16px/1.85 system-ui,sans-serif;max-width:960px;margin:auto;padding:24px;color:#263347;background:#fafbfd}h1,h2{line-height:1.35}h2{margin-top:2em;border-bottom:1px solid #ced6df;padding-bottom:8px}pre{background:#edf2f7;padding:16px;overflow:auto;font:14px/1.65 monospace;border-radius:8px}td,th{padding:8px;text-align:left;border-bottom:1px solid #d5dbe3}table{width:100%;border-collapse:collapse}a{color:#1d6299}aside{background:#fff3dc;padding:16px}details{margin:14px 0}summary{cursor:pointer;font-weight:650}</style>
+<h1>可选数据工具 / Optional data tools</h1><p>版本0.3.0。四个规则明确的小函数；保留Tidy选列语法、由Polars执行，不重写通用Tidy动词。实际发布验收状态另见validation/STATUS_0.3.0.md。</p><aside>四个函数均返回Polars LazyFrame。统计和标记不主动取回完整数据；严格拆列、唯一键检查需要执行验证。NA/NaN统一处理是本模块明确约定，不意味着所有tidypolars操作都自动采用同样规则。</aside>
+<h2>安装 / Installation</h2><pre>install.packages(c("rlang", "tidyselect"))
+Sys.setenv(NOT_CRAN = "true")
+install.packages("polars", repos = c("https://community.r-multiverse.org",
+                                    "https://cloud.r-project.org"))
+# 只有需要串联普通Tidy动词时 / For additional Tidy verbs
+install.packages(c("dplyr", "tidyr", "stringr"))
+install.packages("tidypolars", repos = c("https://community.r-multiverse.org",
+                                       "https://cloud.r-project.org"))</pre>
+<p>仅Excel输出不必安装这些可选包。数据模块支持本次验收的Polars 1.x；2.x需重新验证。R版本、平台和确切依赖版本以实际验收为准。不要把“固定evanxlsx提交”等同于“固定整个环境”。<br>Excel-only use does not require optional engines. Future dependency versions are not automatically validated.</p>
+<h2>1. 多列分组汇总 / Grouped numeric summaries</h2><p><b>问题：</b>不同处理的株高、粒重需要相同统计口径，且必须知道每组有多少有效观测。<br><b>选函数：</b>summarise_numeric一次生成数量和统计量，不需要复制多段mean/sd。<b>选参数：</b>.cols选测量列；.by选分组列；na_rm默认TRUE忽略NA/NaN，FALSE使有缺失的组统计值为缺失。它不是填补缺失值。</p>
+<pre>library(evanxlsx)
+summary &lt;- df |&gt;
+  summarise_numeric(c(height, weight), .by = treatment)
+write_xlsx(summary, "summary.xlsx", collect = TRUE)
+# 查看小型结果 / Inspect a small result
+as.data.frame(summary$collect())</pre>
+<table><tr><th>后缀 / Suffix</th><th>定义 / Meaning</th></tr><tr><td>__n_total</td><td>全部观测数。</td></tr><tr><td>__n_valid</td><td>有限数值的数量，不包含Inf。</td></tr><tr><td>__n_missing</td><td>NA/null与NaN数量。</td></tr><tr><td>__n_infinite</td><td>正负无穷数量。</td></tr><tr><td>__mean / __median / __sd</td><td>均值、中位数、样本标准差，SD使用n−1。</td></tr><tr><td>__q1 / __q3 / __iqr</td><td>linear分位数，对应有限数据的R type=7；IQR=Q3−Q1。</td></tr></table>
+<p><b>检查：</b>n_total=n_valid+n_missing+n_infinite。若某组某列有Inf，其描述统计全部为缺失并记录n_infinite，不悄悄排除Inf后给出普通结果。全缺失时统计值为缺失，单个有效值时SD为缺失。空的未分组输入返回一行零计数；空的分组输入返回零行。</p>
+<p>测量列支持普通32位及以下整数、UInt32、Float32/64；Int64/UInt64/Decimal要求上游显式转换，避免无声损失精度。字符编号不自动转数值。分组键与测量列不能重叠。列选择支持裸列名、c()、all_of()、starts_with()；暂不支持where()或边选边改名。</p>
+<h2>2. IQR标记而不是自动删除 / Flag, do not delete</h2><p><b>问题：</b>想查看哪些观测超出IQR范围，但不能直接丢掉原始数据。<b>参数：</b>k=1.5是标记规则倍数；min_n=4是可调整的工作约定，不是普遍的统计样本量标准。.by防止混合不同处理的分布。</p>
+<pre>flagged &lt;- df |&gt; flag_iqr(height, .by = treatment, k = 1.5, min_n = 4)
+# 保留全部行，查看标记 / All rows remain
+as.data.frame(flagged$collect())</pre>
+<p>新增iqr_n_valid、iqr_q1、iqr_q3、iqr_lower、iqr_upper、iqr_outlier、iqr_reason。上下界Q1−k×IQR与Q3+k×IQR，严格小于/大于才标TRUE，等于边界不标记。缺失行、组内Inf、样本不足、IQR=0时标记为NA，不假装FALSE；原因分别为missing、infinite_in_group、insufficient_n、zero_iqr。普通可判定行原因为tested。原列和原始行数不变，新增列撞名直接报错。</p>
+<p>以下是你主动决定的后续分析，不是默认行为；未判定的NA标记也会被此筛选排除，须先审查原因。<br>The following is explicit exclusion, not automatic data cleaning; unclassified flags are also excluded.</p>
+<pre>library(dplyr)
+library(tidypolars)
+options(tidypolars_unknown_args = "error", tidypolars_fallback_to_r = FALSE)
+kept_summary &lt;- flagged |&gt;
+  filter(iqr_outlier == FALSE) |&gt;
+  summarise_numeric(height, .by = treatment)</pre>
+<h2>3. 严格拆列 / Literal strict splitting</h2><p><b>问题：</b>Chr01:00123需要拆成染色体和位置，但00123不能变成123；字段多/少不能悄悄删掉。<b>选参数：</b>sep仅按字面处理，.、|、::都不是正则；into明确每个字段名称；默认保留源列remove=FALSE。</p>
+<pre>parts &lt;- df |&gt;
+  separate_strict(locus, into = c("Chr", "Position"), sep = ":")
+# LazyFrame需明确允许验证执行 / Permission for lazy validation
+parts &lt;- polars_query |&gt;
+  separate_strict(locus, c("Chr", "Position"), ":", collect = TRUE)</pre>
+<p>每条非缺失记录必须正好包含指定数量字段，否则报错。NA源字符串产生NA字段；连续分隔符产生空字符串，不自动当NA。字段保留字符类型、空白和前导零；不进行CSV引号/转义解析。新列不允许覆盖已有列；输出字段追加到末尾。</p>
+<h2>4. 长转宽前查键 / Keys before pivoting</h2><p><b>问题：</b>Sample_ID×trait有重复，直接转宽可能需要聚合，但不能替你决定平均。<b>选函数：</b>assert_unique_keys检查组合唯一且默认不缺失；若重复/缺失直接报错。allow_missing=TRUE仅放宽缺失约束，不放宽唯一约束。</p>
+<pre>library(tidyr)
+library(tidypolars)
+wide &lt;- long_table |&gt;
+  assert_unique_keys(c(Sample_ID, trait)) |&gt;
+  pivot_wider(id_cols = Sample_ID, names_from = trait, values_from = value)</pre>
+<p>LazyFrame校验加collect=TRUE。校验执行一次分组统计，随后返回原查询供继续管道使用；转宽或导出可能再次读取数据源，故需使用稳定输入。这不是动态文件/数据库事务快照。仅取小型校验统计回R，不等于源扫描或引擎内存没有成本。</p>
+<h2>5. 已有动词继续复用 / Reuse existing verbs</h2><pre>long &lt;- polars_query |&gt;
+  pivot_longer(c(height, weight), names_to = "trait", values_to = "value")
+filled &lt;- polars_query |&gt;
+  replace_na(list(count = 0, note = "Unknown"))
+ordered &lt;- polars_query |&gt;
+  arrange(Sample_ID, time) |&gt;
+  fill(label, .by = Sample_ID, .direction = "down")</pre>
+<p>0是有效数值，只在确实应填0时使用。向下填充必须明确分组与顺序。tidypolars 0.19.0已知调用边界仍存在：原生IQR、mean(trim)、pivot_wider(values_fn)、separate_wider_delim等不能据此声称全部支持；不要把不支持的参数静默忽略。</p>
+<h2>English contract summary</h2><p>All four helpers return native Polars LazyFrames. They use Tidy selection but do not implement an arbitrary R-expression compiler. Summary and flag helpers build native Polars expressions only; scalar validation aggregates execute for strict split/key checks, requiring collect=TRUE for lazy inputs. No R row-wise callbacks, hidden fallback, input modification, guessed imputation or automatic outlier deletion. Numerical policies, unclassified reasons, name collisions and finite measurement type restrictions are explicit. The existing Excel exporter stays independent.</p>
+<h2>复现与依据 / Reproduction and primary sources</h2><pre>Rscript tools/check.R
+Rscript tools/integration_check.R
+Rscript tools/data_check.R</pre><p>安装当前构建包后运行上述脚本。输出写新validation目录；数据是确定性例子和set.seed(20260930)的合成参考数据，无真实研究数据。</p><p><a href="https://tidyselect.r-lib.org/reference/eval_select.html">Tidy selection</a> · <a href="https://pola-rs.github.io/r-polars/man/expr__over.html">Polars grouped windows</a> · <a href="https://stat.ethz.ch/R-manual/R-devel/library/stats/html/quantile.html">R quantile algorithms</a> · <a href="https://tidypolars.etiennebacher.com/articles/r-and-polars-expressions">Tidy/Polars expressions</a></p></html>

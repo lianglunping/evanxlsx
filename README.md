@@ -1,53 +1,40 @@
 # evanxlsx
 
-[English](README.en.md) · [中英文指南](inst/guide/usage.html)
+[English](README.en.md) · [Excel指南](inst/guide/usage.html) · [可选数据模块](inst/guide/data_tools.html)
 
-一致的 Excel 导出。一个 `write_xlsx()`，唯一直接必需依赖为 openxlsx2。
-支持普通数据框、tibble、duckplyr、R Polars；默认统一字体、NA留空、冻结首行、三线表。
+一个Excel导出入口，另有四个可选的科研数据辅助函数。普通导出唯一直接必需依赖仍为openxlsx2。
 
 ```r
 evanxlsx::write_xlsx(list(var = df, id83 = df1), "WES.xlsx")
-evanxlsx::write_xlsx(df, "Arial.xlsx", font = "Arial", font_size = 12, align = "left")
-evanxlsx::write_xlsx(query, "query.xlsx", collect = TRUE, max_rows = 100000)
 ```
 
 ## 安装
 
-私有仓库需要本机的读取凭据，不要共享或提交凭据。
+私有仓库需本机读取权限；不要分享凭据。固定版本及实测范围见对应validation/STATUS文件。
 
 ```r
 install.packages("remotes")
 remotes::install_github("lianglunping/evanxlsx", dependencies = NA, upgrade = "always")
-# 或选择 R CMD build 生成的源码包：
-remotes::install_local(file.choose(), dependencies = NA, upgrade = "always")
 ```
 
-`upgrade="always"` 可能更新解析到的必要依赖；受控环境先固定依赖再安装。
-`install.packages(..., repos=NULL)` 不会下载缺失依赖。导出函数从不安装软件。
-版本及实际已测试提交以对应 `validation/STATUS_<version>.md` 为准。
+安装器处理必需依赖，导出函数不安装软件。always可能更新相关依赖；固定本包SHA不等于固定整个依赖环境。
+本地tar.gz可用remotes::install_local(file.choose(), dependencies=NA, upgrade="always")补齐依赖。
 
-## 0.2.1 的行为修正
+## 可选数据模块：Tidy选择，Polars执行
 
-时间列按位置处理，列名中的 `*` 或正则字符不再被当成选择表达式。
-自定义行名不输出，但会警告；重要ID请显式放入列，不自动猜测ID列名。
-数字/日期/字符编号/边框的约定不受对应 openxlsx2 全局格式选项影响，退出后恢复用户设置。
-固定列宽时不读取 max_width。
-最终复制失败会尽力恢复原文件或清理新残缺文件，并保留完整新工作簿；错误信息给出路径。
-这不是跨平台事务或并发写入锁，恢复也可能因磁盘/权限原因失败。
-旧Python打包与静态检查工具已移除，历史由Git保留；安装包只用 R CMD build。
-
-## 范围
-
-所有duckplyr对象和Polars LazyFrame需 `collect=TRUE`。max_rows约束最终返回行数，不保证引擎内存上限。
-核心R>=4.1.3，可选后端版本要求独立；本适配不声明Polars2.x支持。
-不嵌入字体、不自动修复研究数据、不追加到已有工作簿、不上传用户数据。
-覆盖整个工作簿需 `overwrite=TRUE`，之前的文件会保留独立备份。
+仅需要这些函数时安装polars、rlang、tidyselect；组合Tidy动词另装tidypolars、dplyr、tidyr。
 
 ```r
-utils::browseURL(system.file("guide", "usage.html", package = "evanxlsx"))
-source(system.file("examples", "basic.R", package = "evanxlsx"), encoding = "UTF-8")
-example_basic()
+summary <- evanxlsx::summarise_numeric(df, c(height, weight), .by = treatment)
+flagged <- evanxlsx::flag_iqr(df, height, .by = treatment)
+parts <- evanxlsx::separate_strict(df, locus, c("Chr", "Position"), sep = ":")
+checked <- evanxlsx::assert_unique_keys(long_table, c(Sample_ID, trait))
+evanxlsx::write_xlsx(summary, "summary.xlsx", collect = TRUE)
 ```
 
-构建/验收入口：`Rscript tools/check.R`；完整安装与后端测试见 `.github/workflows/R-CMD-check.yaml`。
-数据处理不在本包重新实现一套 tidyverse；Tidy→Polars 联动单独验证，Excel写出保持独立。
+所有数据辅助函数返回Polars LazyFrame，不返回普通tibble。统计和标记只构造查询；拆列及键检查需执行校验，对LazyFrame须明确collect=TRUE。校验扫描只取小型汇总回R，但仍可能扫描全源，且不是动态数据源的事务快照。
+NA与NaN统一为缺失；任何Inf使所在组该列描述统计为缺失，并输出n_infinite。样本SD分母n-1；分位数用linear/type7。IQR标记不删行，少样本/零IQR标志为NA并说明原因。
+分隔符只按字面处理，缺字段/多字段报错，字符编号不转数值。重复键不默认求均值。
+均值/清洗/长宽转换不重复实现Tidy翻译框架，继续复用tidypolars支持的动词。
+
+Excel字体/NA/冻结/三线表/备份规则保持0.2.1；使用边界详见安装指南。0.3.0实际状态以对应验收记录为准。

@@ -1,2 +1,6 @@
 export(write_xlsx)
+export(summarise_numeric)
+export(flag_iqr)
+export(separate_strict)
+export(assert_unique_keys)
 importFrom(openxlsx2,wb_workbook)
