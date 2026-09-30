@@ -115,8 +115,14 @@
 .polars_to_frame <- function(x, meta, label) {
   # Cast temporals in Polars, before POSIXct conversion could lose ns precision or timezone.
   temporal <- meta$names[meta$types %in% c("Datetime", "Time")]
-  if (length(temporal)) {
-    x <- x$with_columns(polars::pl$col(temporal)$cast(polars::pl$String))
+  datetime <- meta$names[meta$types == "Datetime"]
+  clock <- meta$names[meta$types == "Time"]
+  if (length(datetime)) {
+    x <- x$with_columns(polars::pl$col(datetime)$cast(polars::pl$String))
+  }
+  if (length(clock)) {
+    # Request all nine fractional digits rather than a default display format.
+    x <- x$with_columns(polars::pl$col(clock)$dt$to_string("%H:%M:%S%.9f"))
   }
   d <- as.data.frame(x, int64 = "character", decimal = "character")
   # Polars Null converts to an R list-column; its schema guarantees all values are missing.
