@@ -10,7 +10,7 @@ test_that("mean and sample SD remain scale-equivariant over wide Float64 magnitu
     expect_equal(got$value__sd/unit,rep(sqrt(5/3),2),tolerance=1e-12)
     expect_equal(got$value__n_valid,c(4,4))
     expect_equal(got$value__n_infinite,c(0,0))
-    single <- as.data.frame(summarise_numeric(d[1:4,],value)$collect())
+    single <- as.data.frame(summarise_numeric(data.frame(value=d$value[1:4]),value)$collect())
     expect_equal(single$value__mean/unit,2.5,tolerance=1e-12)
     expect_equal(single$value__sd/unit,sqrt(5/3),tolerance=1e-12)
   }
