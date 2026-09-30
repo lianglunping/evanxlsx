@@ -1,0 +1,39 @@
+name: Independent review probes
+on:
+  push:
+    branches: ['audit/0.2.0-third-party-20260930']
+    paths: ['tools/review_probe.R', '.github/workflows/independent-review.yaml']
+permissions:
+  contents: read
+jobs:
+  probe:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      NOT_CRAN: 'true'
+      DUCKPLYR_FALLBACK_COLLECT: '0'
+      DUCKPLYR_FALLBACK_AUTO: '0'
+    steps:
+      - uses: actions/checkout@v7
+        with: {persist-credentials: false}
+      - uses: r-lib/actions/setup-r@v2
+        with:
+          r-version: release
+          use-public-rspm: true
+      - name: Install only probe dependencies and unchanged package
+        shell: Rscript {0}
+        run: |
+          repos <- getOption('repos')
+          if (nzchar(Sys.getenv('RSPM'))) repos <- c(RSPM = Sys.getenv('RSPM'))
+          options(repos = c(repos, multiverse = 'https://community.r-multiverse.org'))
+          install.packages(c('openxlsx2', 'xml2', 'polars'), Ncpus = 2)
+          stopifnot(requireNamespace('openxlsx2'), requireNamespace('xml2'), requireNamespace('polars'))
+          install.packages('.', repos = NULL, type = 'source')
+      - name: Collect observations, not a release acceptance run
+        run: Rscript --vanilla tools/review_probe.R
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: independent-review-observations
+          path: validation/independent-review/
+          retention-days: 30
