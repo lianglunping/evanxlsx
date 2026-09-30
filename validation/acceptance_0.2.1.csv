@@ -1,0 +1,7 @@
+environment,R,check,core_assertions,backend_assertions,installation_routes,large_assertions
+macos_arm,4.6.1,OK,310,287,3,NOT_IN_SCOPE
+macos_intel,4.6.1,OK,310,287,3,NOT_IN_SCOPE
+windows,4.6.1,OK,310,287,3,NOT_IN_SCOPE
+linux,4.6.1,OK,310,287,3,37
+oldrel,4.5.3,OK,310,287,3,NOT_IN_SCOPE
+minimum_core,4.1.3,1_OPTIONAL_DEPENDENCY_NOTE,310,NOT_IN_SCOPE,3,NOT_IN_SCOPE
