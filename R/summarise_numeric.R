@@ -15,11 +15,16 @@ summarise_numeric <- function(.data, .cols, .by = NULL, na_rm = TRUE) {
     finite <- pl$when(z$is_finite())$then(z)$otherwise(NULL)
     invalid <- z$is_infinite()$any()
     if (!na_rm) invalid <- invalid | z$is_null()$any()
+    # Binary rescaling reduces intermediate mean/variance overflow and underflow.
+    # Bounds are the normal Float64 power-of-two exponent range, not data cutoffs.
+    exponent <- finite$abs()$max()$log(2)$floor()$clip(-1022, 1023)$fill_null(0)
+    scale <- pl$lit(2, dtype = pl$Float64)$pow(exponent)
+    scaled <- finite / scale
     q1 <- finite$quantile(0.25, interpolation = "linear")
     q3 <- finite$quantile(0.75, interpolation = "linear")
     values <- list(n_total = pl$len(), n_valid = finite$count(), n_missing = z$null_count(),
-                   n_infinite = z$is_infinite()$sum(), mean = finite$mean(),
-                   median = finite$median(), sd = finite$std(ddof = 1),
+                   n_infinite = z$is_infinite()$sum(), mean = scaled$mean() * scale,
+                   median = finite$median(), sd = scaled$std(ddof = 1) * scale,
                    q1 = q1, q3 = q3, iqr = q3 - q1)
     for (stat in names(values)) {
       e <- values[[stat]]

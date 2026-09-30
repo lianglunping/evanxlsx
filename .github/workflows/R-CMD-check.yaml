@@ -1,7 +1,7 @@
 name: R-CMD-check
 on:
   push:
-    branches: [main, 'feature/0.3.0-data-tools']
+    branches: [main, 'feature/0.3.1-workflow']
     paths-ignore: ['validation/**']
   pull_request:
   workflow_dispatch:

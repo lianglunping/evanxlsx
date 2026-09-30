@@ -1,15 +1,27 @@
 # evanxlsx
 
-[中文](README.md) · [Exporter guide](inst/guide/usage.html) · [Optional data tools](inst/guide/data_tools.html)
+[中文](README.md) · [Data API](inst/guide/data_tools.html) · [End-to-end workflow](inst/guide/workflow.html)
 
-Consistent Excel output plus four optional Polars data helpers. Excel-only use still directly requires only openxlsx2.
+One Excel writer plus four opt-in Tidy-selection helpers backed by R Polars.
+The only direct mandatory dependency remains openxlsx2. Optional engines are installed separately.
 
-- summarise_numeric: Tidy column/group selection; finite-data counts, mean/median/sample SD and linear quartiles.
-- flag_iqr: non-destructive fences and explicit reasons for unclassified observations.
-- separate_strict: literal delimiter, exact field counts, no silent dropping or padding.
-- assert_unique_keys: validate reshape keys without guessing an aggregation.
+```r
+evanxlsx::write_xlsx(list(var = df, id83 = df1), "WES.xlsx")
+source(system.file("examples", "workflow.R", package = "evanxlsx"), encoding = "UTF-8")
+result <- evanxlsx_workflow()
+result$path
+```
 
-All four return native R Polars LazyFrames. Summaries/flags build expressions. Strict guards execute validation; lazy inputs require collect=TRUE. They are not snapshots of changing sources. Only small validation aggregates return to R; source/engine work may be large.
-NaN/null are missing, infinity invalidates group statistics with a visible count. Unsupported exact numeric types need explicit conversion. This is not a reimplementation of Tidy translation; compose with tidypolars.
+The installed synthetic workflow connects Parquet, annotation cleaning, ordered grouped fill,
+exact-duplicate removal, strict split, long/wide reshape, summaries, IQR flags and Excel output.
+It preserves raw inputs and records object classes and a query plan. It neither imputes traits
+nor deletes flagged outliers. Dynamic pivoting is not claimed to remain fully unevaluated.
+The example is sourced, not a new exported API or a pipeline framework.
 
-Install required dependencies via remotes (dependencies=NA). Optional functions need separately installed polars, rlang and tidyselect. No automatic installation during use; the repository remains private. See the version-specific validation record for tested commits and environments, not just the package version label.
+Version 0.3.1 rescales mean/SD intermediates by powers of two to address reproduced finite-data
+underflow/overflow. It is not arbitrary precision. Counts, missing/infinite policies, quartiles,
+public signatures and the exporter are unchanged. Consult version-specific acceptance records.
+
+Install with remotes::install_github("lianglunping/evanxlsx", dependencies=NA, upgrade="always").
+Private access requires a local credential. This can update dependencies; a pinned package commit
+alone does not pin the project environment. Export never installs software.

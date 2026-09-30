@@ -1,0 +1,42 @@
+<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>evanxlsx 0.3.1｜从清洗到Excel</title>
+<style>body{font:16px/1.85 system-ui,sans-serif;color:#243244;background:#f8fafc;max-width:980px;margin:auto;padding:24px}h1,h2{line-height:1.4}h2{margin-top:2em;border-bottom:1px solid #cbd5e1;padding-bottom:10px}pre{background:#eaf0f6;padding:18px;border-radius:8px;overflow:auto;font:14px/1.65 monospace}table{border-collapse:collapse;width:100%}td,th{padding:10px;border-bottom:1px solid #d0dae5;text-align:left}aside{border-left:4px solid #507396;padding:12px 18px;background:#eaf0f6}a{color:#18598a}</style>
+<h1>从清洗到 Excel：一条可运行的工作流</h1><p>evanxlsx 0.3.1 · Chinese / English guide<br>已有Tidy动词负责通用操作；四个小函数负责明确规则；Excel输出继续使用同一个入口。</p>
+<aside>示例只使用确定性合成数据。版本本身不等于验收状态；实际运行、版本、哈希与限制以配套0.3.1验收报告为准。不安装字体，不修改原始研究数据，不默认填补测量值或删除异常值。</aside>
+<h2>1. 先运行，再拆解 / Run the example</h2><pre>source(system.file("examples", "workflow.R", package = "evanxlsx"), encoding = "UTF-8")
+result &lt;- evanxlsx_workflow()
+result$path</pre><p>source只定义示例函数；实际调用后写入新临时目录。自定义目录需尚不存在，例如evanxlsx_workflow("workflow_demo")，不覆盖既有结果。示例函数不在NAMESPACE中新增导出，也不是要用户学习的新配置框架。<br>Source defines a demo, not an extra public package function. Running it uses a fresh output directory and refuses an existing one.</p>
+<h2>2. 你会得到什么 / Outputs</h2><table><tr><th>文件/工作表</th><th>含义</th></tr><tr><td>raw.rds / raw.parquet</td><td>原始合成输入；RDS保留NA与NaN的区别。</td></tr><tr><td>clean</td><td>清理注释、组内补批次、去完全重复记录、严格拆位点。</td></tr><tr><td>long / wide</td><td>宽转长、检查唯一键后长转宽；缺失测量保留。</td></tr><tr><td>summary</td><td>按处理汇总株高/粒重，输出计数与统计量。</td></tr><tr><td>flagged</td><td>按处理×性状标记IQR异常值；没有删行。</td></tr><tr><td>stage_classes.csv</td><td>实际中间对象类型，不假设每一步都是LazyFrame。</td></tr><tr><td>summary_plan.txt / environment.txt</td><td>Polars查询计划与运行版本，支持复核。</td></tr></table>
+<h2>3. 清洗时先决定允许改变什么 / Cleaning contract</h2><p><b>问题：</b>注释有首尾空白、缺失批次与一条完全重复记录。<b>思路：</b>注释可规范化；测量不能无理由填0。批次可以在明确排序的处理组内向下补，不能跨组。<b>选函数与参数：</b>str_trim仅处理note；replace_na仅填注释；distinct去全行重复而不是任意重复ID；arrange确定fill顺序；.by隔离分组。</p>
+<pre>clean &lt;- polars::pl$scan_parquet("raw.parquet") |&gt;
+  dplyr::mutate(note = stringr::str_trim(note)) |&gt;
+  tidyr::replace_na(list(note = "Unknown / 未记录")) |&gt;
+  dplyr::distinct() |&gt;
+  dplyr::arrange(treatment, Sample_ID) |&gt;
+  tidyr::fill(batch, .by = treatment, .direction = "down")</pre>
+<p>实际示例还显式把weight中的NaN转为null：pl_nan_to_null &lt;- function(x) x$fill_nan(NULL)，并在mutate内使用。这个函数返回Polars表达式，不逐行回调R；原始RDS保持不变。文本“NA”不当成缺失值。<br>NaN normalization is explicit, not an implicit feature of every Tidy verb. Measurement values are not imputed.</p>
+<h2>4. 拆列和长宽转换 / Split and reshape</h2><p><b>问题：</b>Chr01:00001要拆开；测量列要转换成长表并能再转宽。<b>参数：</b>sep=":"是字面分隔符；into明确列名。pivot_longer只选择测量列；pivot_wider前先检查Sample_ID×trait唯一。重复键不自动求均值。</p><pre>parts &lt;- clean |&gt;
+  evanxlsx::separate_strict(locus, c("Chr", "Position"), ":", collect = TRUE)
+long &lt;- parts |&gt;
+  tidyr::pivot_longer(c(height, weight), names_to = "trait", values_to = "value")
+wide &lt;- long |&gt;
+  evanxlsx::assert_unique_keys(c(Sample_ID, trait), collect = TRUE) |&gt;
+  tidyr::pivot_wider(id_cols = c(Sample_ID, treatment),
+                   names_from = trait, values_from = value)</pre><p><b>检查：</b>Position仍为字符，00001不变成1；每个样本×性状一行；长宽转换前后每个测量与缺失状态一致。</p>
+<aside>宽表的新列取决于trait中的取值，因此不能假设长转宽始终不执行查询。实际对象类型保存在stage_classes.csv。返回LazyFrame也不单独证明此前没有执行任何子查询；校验统计和动态列发现都可能提前执行。需要处理大数据时先限定目标列/记录和稳定输入。</aside>
+<h2>5. 汇总和标记必须分开 / Summaries versus screening</h2><pre>summary &lt;- clean |&gt;
+  evanxlsx::summarise_numeric(c(height, weight), .by = treatment)
+flagged &lt;- long |&gt;
+  evanxlsx::flag_iqr(value, .by = c(treatment, trait))
+evanxlsx::write_xlsx(list(summary = summary, flagged = flagged),
+                     "summary.xlsx", collect = TRUE)</pre><p>示例没有先删掉异常值再汇总。缺失、零IQR、样本不足等未判定情况保持NA标记并给原因。主动filter(iqr_outlier==FALSE)也会排除未判定NA，不能当成中性的默认清洗。</p>
+<h2>6. 0.3.1数值修正 / Numeric correction</h2><p>新增边界复测在0.3.0中复现：1:4×10^-200的SD为0、1:4×10^200的SD为Inf，以及重复10^308的均值为Inf。0.3.1计算先以2的整数幂缩放均值/SD的中间量，最后恢复原单位。输入、计数、缺失规则、四分位数与公开参数不变。</p><p>缩放指数被限制在Float64正常幂范围−1022至1023，这是浮点表示范围而非删除数据的阈值。它不是任意精度计算，不保证所有极端分布的全部统计量都可表示，也不恢复上游已经损失的精度。真实超出Float64范围的结果仍可能非有限。</p><p>测试用“结果÷尺度”比较无量纲值，避免0与极小真值因宽松绝对误差被误判相等；原有普通数值与分组测试仍需通过。</p>
+<h2>7. 安装与日常入口 / Installation</h2><pre>install.packages("remotes")
+remotes::install_github("lianglunping/evanxlsx",
+                        dependencies = NA, upgrade = "always")
+# 可选工作流依赖 / Optional workflow dependencies
+install.packages(c("dplyr", "tidyr", "stringr", "rlang", "tidyselect"))
+Sys.setenv(NOT_CRAN = "true")
+install.packages(c("polars", "tidypolars"),
+                 repos = c("https://community.r-multiverse.org", "https://cloud.r-project.org"))</pre><p>私有仓库需本机读取凭据。always允许更新相关依赖，不等于锁定研究环境；固定依赖需在项目层处理。仅Excel输出不要求安装完整数据模块。示例要求缺少依赖时明确停止，不在执行中安装软件。</p>
+<h2>English summary</h2><p>The installed example connects Parquet input, explicit annotation cleaning, ordered within-group filling, exact-duplicate removal, strict splitting, long/wide reshaping, grouped summaries, non-destructive IQR flags and Excel output. It preserves raw fixtures and records actual stage classes and query plans. It does not provide blanket Tidy compatibility or assume that dynamic pivots never execute early. The numeric patch rescales mean/SD intermediates by powers of two; public signatures and missing-data policies are unchanged. Test evidence and residual Float64/viewer limitations must be read separately from this guide.</p>
+<p>Primary references: <a href="https://tidypolars.etiennebacher.com/">R tidypolars</a> · <a href="https://pola-rs.github.io/r-polars/man/expr__std.html">Polars SD</a> · <a href="https://stat.ethz.ch/R-manual/R-devel/library/stats/html/sd.html">R sample SD</a> · <a href="https://remotes.r-lib.org/reference/install_github.html">remotes</a></p></html>

@@ -1,3 +1,14 @@
+# evanxlsx 0.3.1
+
+- Stabilize numeric-summary mean and sample SD with internal power-of-two scaling.
+  Reproduced 0.3.0 underflow/overflow cases are retained as regression tests.
+  Input values, counts, missing/infinite policies, quartiles and public API are unchanged.
+- Add an installed, bilingual end-to-end example: Parquet, explicit annotation
+  cleaning/fill, exact-duplicate removal, strict splitting, long/wide conversion,
+  summaries, IQR flags and a five-sheet workbook. No automatic trait imputation.
+- Record actual stage classes rather than implying every pivot stays lazy.
+- Add scaled numeric and practical workflow checks; no new mandatory dependency.
+
 # evanxlsx 0.3.0
 
 - Add four opt-in data helpers: summarise_numeric(), flag_iqr(), separate_strict(), assert_unique_keys().
