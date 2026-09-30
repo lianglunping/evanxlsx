@@ -20,8 +20,8 @@ remotes::install_local(file.choose(), dependencies = NA, upgrade = "always")
 `upgrade="always"` 允许更新解析到的必要依赖，可能更新已满足最低要求的依赖；不是更新整个包库。
 实测 `upgrade="never"` 不会更新已安装但过旧的依赖，不能无条件推荐。受控环境先确认版本再用 never。
 基础 R 的 `install.packages(..., repos=NULL)` 不会下载缺失依赖。升级已加载包后重启 R。
-离线环境需提前准备 R、所有必要依赖和系统组件。开发分支以本版验收报告为准，main 保留0.1.1。
-固定版本时用报告中的完整代码提交 SHA 替换 ref。
+离线环境需提前准备 R、所有必要依赖和系统组件。安装前请查看本版验收报告。
+固定版本时用报告中的完整代码提交 SHA 替换 ref；不要把旧版本的通过结果套用到新版本。
 
 ## 日常调用
 
@@ -53,6 +53,7 @@ evanxlsx::write_xlsx(list(duck = q_duck, polars = p_df, query = p_query),
 `max_rows` 默认1048575为Excel容量，不是内存保证。对最终查询取至多上限+1行，执行一次，
 超限报错、不截断。它不限制引擎内部连接/排序/扫描资源，逐sheet转换不等于流式XLSX。
 Polars长整数转换前检查；不安全的整列、Decimal和高精度时间保留文本。
+Time 明确输出九位小数秒；纳秒精度以文本保留，不声称是原生 Excel 时间。
 嵌套/二进制/Duration显式报错；普通R/duckplyr integer64需先准确转字符。
 上游丢失的精度不能恢复。详细类型和时区边界见指南。
 

@@ -20,8 +20,8 @@ NA selects required dependency fields, not all optional Suggests. Always permits
 required dependencies to update, possibly beyond minimum versions; it does not update the whole library.
 Never failed our installed-but-outdated dependency fixture, so use it only after checking versions.
 Base install.packages(repos=NULL) does not download dependencies. Restart R after updating loaded packages.
-Offline use requires R and dependencies separately. Main preserves0.1.1; consult this branch's validation.
-Pin ref to the tested full commit SHA for reproducibility.
+Offline use requires R and dependencies separately. Consult this version's validation report before use.
+Pin ref to the tested full commit SHA; do not transfer an older version's acceptance to newer code.
 
 ## Use
 
@@ -52,7 +52,8 @@ The per-sheet row cap defaults to Excel capacity minus header, not a safe memory
 final collection retrieves at most max_rows+1 rows; excess causes failure, never silent truncation.
 Engine resources remain unbounded by this setting. Per-sheet conversion is not streaming XLSX.
 Exact integer strings are checked before numeric conversion; unsafe columns and Decimal remain text.
-Polars Datetime/Time are cast to text before R conversion. This is not a full timezone-semantic round trip.
+Polars Datetime/Time are cast to text before R conversion. Time explicitly retains nine fractional
+second digits. This is text, not native Excel time or a full timezone-semantic round trip.
 Nested/binary/Duration columns require explicit conversion. Base/duckplyr integer64 must be converted
 explicitly. Already-lost precision cannot be recovered. See the guide for details.
 
