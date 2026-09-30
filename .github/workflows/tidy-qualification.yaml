@@ -1,7 +1,8 @@
 name: Optional Tidy Polars qualification
 on:
   push:
-    branches: ['fix/0.2.1-review']
+    branches: ['fix/0.2.1-review', 'qualify/tidy-0.2.1']
+    paths: ['tools/tidy_smoke.R', '.github/workflows/tidy-qualification.yaml', 'R/**', 'DESCRIPTION']
   workflow_dispatch:
 permissions:
   contents: read

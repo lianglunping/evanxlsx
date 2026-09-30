@@ -91,22 +91,28 @@ check("08_direct_excel", {
   evanxlsx::write_xlsx(q, f, collect = TRUE, max_rows = 100L)
   same(openxlsx2::read_xlsx(f), get_df(q))
 })
+# Explicit numeric-missing policy; no row-wise R fallback.
+pl_nan_to_null <- function(x) x$fill_nan(NULL)
 check("09_statistical_edge_cases", {
   cases <- list(singleton = c(7, NA_real_), all_missing = c(NA_real_, NaN),
                 mixed_nan = c(1, 2, NaN, NA_real_), constant = c(5, 5, 5))
   results <- list()
   for (nm in names(cases)) {
     v <- cases[[nm]]
-    q <- polars::as_polars_lf(data.frame(value = v)) |>
+    z <- polars::as_polars_lf(data.frame(value = v))
+    original <- unlist(get_df(z |> summarise(m = mean(value, na.rm = TRUE),
+                                            s = sd(value, na.rm = TRUE))), use.names = FALSE)
+    q <- z |> mutate(value = pl_nan_to_null(value)) |>
       summarise(m = mean(value, na.rm = TRUE), s = sd(value, na.rm = TRUE))
     got <- unlist(get_df(q), use.names = FALSE)
     target <- c(mean(v, na.rm = TRUE), sd(v, na.rm = TRUE))
+    results[[nm]] <- data.frame(case = nm, raw_mean = original[1], raw_sd = original[2],
+                                normalized_mean = got[1], normalized_sd = got[2],
+                                r_mean = target[1], r_sd = target[2])
+    write.csv(do.call(rbind, results), file.path(out, "edge_statistics.csv"), row.names = FALSE)
     stopifnot(identical(is.na(got), is.na(target)))
     same(got[!is.na(target)], target[!is.na(target)])
-    results[[nm]] <- data.frame(case = nm, mean = got[1], sd = got[2],
-                                r_mean = target[1], r_sd = target[2])
   }
-  write.csv(do.call(rbind, results), file.path(out, "edge_statistics.csv"), row.names = FALSE)
 })
 check("10_parquet_scan", {
   p <- file.path(out, "synthetic.parquet")
