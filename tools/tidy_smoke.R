@@ -35,7 +35,7 @@ check("01_mean_sd", {
   ref <- raw |> summarise(mean_value = mean(value, na.rm = TRUE), sd_value = sd(value, na.rm = TRUE), .by = group) |>
     arrange(group)
   same(get_df(q), ref)
-  writeLines(capture.output(show_query(q)), file.path(out, "mean_sd_polars_query.txt"))
+  writeLines(q$explain(), file.path(out, "mean_sd_polars_query.txt"))
   write.csv(get_df(q), file.path(out, "mean_sd.csv"), row.names = FALSE)
 })
 check("02_iqr_expression", {
@@ -49,7 +49,7 @@ check("02_iqr_expression", {
   }
   q <- x |> summarise(iqr = pl_iqr(value), .by = group) |> arrange(group)
   same(get_df(q)$iqr, c(1, 0))
-  writeLines(capture.output(show_query(q)), file.path(out, "iqr_polars_query.txt"))
+  writeLines(q$explain(), file.path(out, "iqr_polars_query.txt"))
 })
 check("03_split_column", {
   d <- data.frame(locus = c("Chr01:00123", "Chr02:00456", NA_character_))
@@ -91,8 +91,36 @@ check("08_direct_excel", {
   evanxlsx::write_xlsx(q, f, collect = TRUE, max_rows = 100L)
   same(openxlsx2::read_xlsx(f), get_df(q))
 })
+check("09_statistical_edge_cases", {
+  cases <- list(singleton = c(7, NA_real_), all_missing = c(NA_real_, NaN),
+                mixed_nan = c(1, 2, NaN, NA_real_), constant = c(5, 5, 5))
+  results <- list()
+  for (nm in names(cases)) {
+    v <- cases[[nm]]
+    q <- polars::as_polars_lf(data.frame(value = v)) |>
+      summarise(m = mean(value, na.rm = TRUE), s = sd(value, na.rm = TRUE))
+    got <- unlist(get_df(q), use.names = FALSE)
+    target <- c(mean(v, na.rm = TRUE), sd(v, na.rm = TRUE))
+    stopifnot(identical(is.na(got), is.na(target)))
+    same(got[!is.na(target)], target[!is.na(target)])
+    results[[nm]] <- data.frame(case = nm, mean = got[1], sd = got[2],
+                                r_mean = target[1], r_sd = target[2])
+  }
+  write.csv(do.call(rbind, results), file.path(out, "edge_statistics.csv"), row.names = FALSE)
+})
+check("10_parquet_scan", {
+  p <- file.path(out, "synthetic.parquet")
+  polars::as_polars_df(raw)$write_parquet(p)
+  before <- tools::md5sum(p)
+  q <- polars::pl$scan_parquet(p) |>
+    summarise(mean_value = mean(value, na.rm = TRUE), .by = group) |> arrange(group)
+  same(get_df(q), raw |> summarise(mean_value = mean(value, na.rm = TRUE), .by = group) |> arrange(group))
+  stopifnot(identical(tools::md5sum(p), before))
+  writeLines(q$explain(), file.path(out, "parquet_polars_query.txt"))
+})
 # These calls explore availability rather than granting blanket Tidy compatibility.
 limits <- list(
+  show_query = quote(dplyr::show_query(x)),
   native_IQR = quote(x |> summarise(iqr = IQR(value, na.rm = TRUE), .by = group)),
   separate_wider_delim = quote(polars::as_polars_lf(data.frame(key = "a:b")) |>
                                 separate_wider_delim(key, delim = ":", names = c("a", "b"))),
