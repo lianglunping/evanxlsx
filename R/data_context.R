@@ -4,8 +4,11 @@
   .require_backend("rlang", "1.1.0", "install.packages('rlang')")
   .require_backend("tidyselect", "1.2.0", "install.packages('tidyselect')")
   if (utils::packageVersion("polars") >= "2.0.0") stop("Polars 2.x requires revalidation.", call. = FALSE)
-  if (inherits(x, c("duckplyr_df", "grouped_df", "rowwise_df"))) {
-    stop("Collect duckplyr explicitly or ungroup R data first; specify grouping with `.by`.", call. = FALSE)
+  # tidypolars stores grouping in attributes, not in grouped_df inheritance.
+  grouped <- length(attr(x, "pl_grps", exact = TRUE)) > 0L ||
+    identical(attr(x, "grp_type", exact = TRUE), "rowwise")
+  if (inherits(x, c("duckplyr_df", "grouped_df", "rowwise_df")) || grouped) {
+    stop("Collect duckplyr explicitly or ungroup the input first; specify grouping with `.by`.", call. = FALSE)
   }
   lazy <- inherits(x, "polars_lazy_frame")
   if (!lazy && !inherits(x, "polars_data_frame") && !is.data.frame(x)) {
