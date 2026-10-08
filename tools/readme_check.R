@@ -24,7 +24,7 @@ extract <- function(file, marker = "example") {
     } else if (identical(line, "```r")) {
       inside <- TRUE; body <- character()
     } else if (inside && identical(line, "```")) {
-      parse(text = body) # Also parse unmarked installation/illustrative code, never execute it.
+      parse(text = body)
       if (!is.null(id)) {
         if (id %in% names(blocks)) stop("Duplicate example ID: ", id)
         blocks[[id]] <- paste(body, collapse = "\n")
@@ -44,7 +44,6 @@ stopifnot(identical(names(blocks), expected_ids))
 mirrors <- extract("README.en.md", marker = "mirror")
 for (id in names(mirrors)) stopifnot(identical(mirrors[[id]], blocks[[id]]))
 
-# No spreadsheet edits in these checks: parse the files created by the README's R calls.
 part_xml <- function(file, path) {
   dir <- tempfile("xml-"); dir.create(dir)
   on.exit(unlink(dir, recursive = TRUE), add = TRUE)
@@ -59,8 +58,12 @@ same_table <- function(actual, expected) {
   stopifnot(identical(names(actual), names(expected)), nrow(actual) == nrow(expected))
   for (nm in names(expected)) {
     a <- actual[[nm]]; b <- expected[[nm]]
-    if (is.character(b)) stopifnot(is.character(a), identical(enc2utf8(a), enc2utf8(b)))
-    else if (is.numeric(b)) stopifnot(is.numeric(a), isTRUE(all.equal(as.numeric(a), as.numeric(b), tolerance = 1e-12)))
+    if (is.character(b)) {
+      if (!is.character(a) || !identical(enc2utf8(a), enc2utf8(b))) {
+        stop("Column ", nm, ": actual=", paste(capture.output(dput(a)), collapse=" "),
+             "; expected=", paste(capture.output(dput(b)),collapse=" "))
+      }
+    } else if (is.numeric(b)) stopifnot(is.numeric(a), isTRUE(all.equal(as.numeric(a), as.numeric(b), tolerance = 1e-12)))
     else stopifnot(identical(a, b))
   }
 }
@@ -71,7 +74,6 @@ save_state <- function() write.csv(checks, file.path(out, "examples.csv"), row.n
 save_state()
 env <- new.env(parent = globalenv())
 old_options <- options()
-on.exit <- NULL # This script is a process entry point; restore explicitly in its finalizer below.
 
 verify <- function(id) {
   e <- env
@@ -84,9 +86,9 @@ verify <- function(id) {
     },
     xlsx_multi = {
       stopifnot(identical(unname(openxlsx2::wb_get_sheet_names(openxlsx2::wb_load(e$xlsx_file))), c("variant_info", "id83")))
+      e$baseline_md5 <- tools::md5sum(e$xlsx_file)
       same_table(read_sheet(e$xlsx_file, "variant_info"), e$df)
       same_table(read_sheet(e$xlsx_file, "id83"), e$df1)
-      e$baseline_md5 <- tools::md5sum(e$xlsx_file)
       ws <- part_xml(e$xlsx_file, "xl/worksheets/sheet1.xml")
       stopifnot(length(xml2::xml_find_all(ws, ".//f")) == 0L,
                 xml2::xml_text(xml2::xml_find_first(ws, ".//c[@r='E9']/is/t")) == "=1+1")
@@ -208,8 +210,9 @@ result <- tryCatch({
     checks$state[i] <- if(is.null(err)) "PASS" else "FAIL"
     checks$detail[i] <- if(is.null(err)) "Executed README code and checked outputs" else err
     save_state()
-    if(!is.null(err)) stop(id, ": ", err)
+    if(!is.null(err)) message(id, ": ", err)
   }
+  if (any(checks$state != "PASS")) stop("Some README examples failed; see examples.csv for original diagnostics.")
   extra <- function(id, expression) {
     force(expression)
     extras <<- rbind(extras,data.frame(check=id,state="PASS"))
