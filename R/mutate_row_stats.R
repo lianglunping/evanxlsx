@@ -11,7 +11,7 @@ mutate_row_stats <- function(.data, .cols, na_rm = TRUE, prefix = "row") {
   pl <- polars::pl
   z <- lapply(idx, function(i) pl$nth(i - 1L)$cast(pl$Float64)$fill_nan(NULL))
   finite <- lapply(z, function(v) pl$when(v$is_finite())$then(v)$otherwise(NULL))
-  invalid <- do.call(pl$any_horizontal, lapply(z, function(v) v$is_infinite()))
+  invalid <- do.call(pl$any_horizontal, lapply(z, function(v) v$is_infinite()))$fill_null(FALSE)
   if (!na_rm) invalid <- invalid | do.call(pl$any_horizontal, lapply(z, function(v) v$is_null()))
   peak <- do.call(pl$max_horizontal, lapply(finite, function(v) v$abs()))
   scale <- pl$lit(2, dtype = pl$Float64)$pow(peak$log(2)$floor()$clip(-1022, 1023)$fill_null(0))

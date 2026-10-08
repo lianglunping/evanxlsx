@@ -60,10 +60,10 @@ import <- function(file, sheet = 1, sep = NULL, text_cols = NULL, na = "",
     x <- do.call(readr::read_delim, args)
     readr::stop_for_problems(x)
   }
+  if (!is.null(cols) && format == "xlsx") x <- x[.io_columns(cols, names(x))]
   # text_cols/types refer to retained columns; an incorrect declaration is never ignored.
   if (length(setdiff(text_cols, names(x)))) stop("A `text_cols` column was not found.", call. = FALSE)
   if (length(setdiff(names(types), names(x)))) stop("A `types` column was not found in the selected data.", call. = FALSE)
-  if (!is.null(cols) && format == "xlsx") x <- x[.io_columns(cols, names(x))]
   tibble::as_tibble(x, .name_repair = "check_unique")
 }
 
