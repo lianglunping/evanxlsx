@@ -1,57 +1,55 @@
 \name{import_export}
 \alias{import}
 \alias{export}
-\title{Read and Write XLSX, TXT, TSV and CSV}
+\title{Import and Export Common Table Files}
 \usage{
-import(file, sheet = 1, sep = NULL, text_cols = NULL, na = "", ...)
+import(file, sheet = 1, sep = NULL, text_cols = NULL, na = "",
+       cols = NULL, types = NULL, comment = "", lazy = FALSE, ...)
 export(x, file, sheet = "Sheet1", sep = NULL, overwrite = FALSE,
        collect = FALSE, na = "", ...)
 }
 \arguments{
-\item{file}{One local filename ending in .xlsx, .txt, .tsv or .csv, case-insensitively. Its extension selects the reader/writer. No compressed, remote or arbitrary-text-file formats are inferred.}
-\item{x}{One data.frame/tibble or supported Polars/duckplyr table. For XLSX, a named list writes multiple worksheets.}
-\item{sheet}{XLSX sheet name or 1-based index for reading; one new sheet name for a single output table. A named output list determines its own sheet names. Not used for text files.}
-\item{sep}{Text delimiter. Default comma for CSV, tab for TXT/TSV. Supply a single-byte delimiter for other delimited TXT files. Not a general whitespace or quoted-document parser.}
-\item{text_cols}{Names of columns to read as text before type inference, useful for leading zeros and long identifiers. Other columns are inferred. This cannot recover precision lost before the file was written. Do not combine with text col_types.}
-\item{na}{Missing-value marker(s) for reading, one marker for text writing. Default blank; literal NA is not a missing marker. Exported XLSX missing values are always empty cells. To read literal NA as missing too, use \code{na = c("", "NA")}.}
-\item{overwrite}{Default FALSE. TRUE keeps a backup and replaces the whole file; not append or sheet-only replacement.}
-\item{collect}{Allow execution of a Polars LazyFrame or duckplyr query before export. Default FALSE. Text export materializes the full result, not a streaming sink or a memory-bounded writer.}
-\item{...}{Named advanced arguments. XLSX import delegates to openxlsx2::wb_to_df (for example dims, types); XLSX export delegates to write_xlsx (font, font_size, align and other existing parameters). Text import delegates to readr::read_delim (col_types, locale, skip); text output delegates to readr::write_delim (quote, eol). Use sep, not delim, to select the delimiter. Appending and changing the output file through these arguments are not supported.}
+\item{file}{One local XLSX, TXT, TSV, CSV or Parquet path; extension selects the format.}
+\item{x}{One table, or a named list for XLSX. Supported backend queries require collect=TRUE on export.}
+\item{sheet}{XLSX sheet name/index on import; name for a single exported table. A named list supplies sheet names.}
+\item{sep}{Text delimiter, default comma for CSV and tab for TXT/TSV.}
+\item{text_cols}{Character vector of columns to keep as text, before inference; shorthand for types.}
+\item{na}{Text values treated as missing on import, or a single missing marker on text export. Default empty string. Parquet uses native nulls and rejects this text setting.}
+\item{cols}{Character vector of column names or positive positions, in desired output order; default all. XLSX reads before subsetting, not a sparse scanner.}
+\item{types}{Named character vector: character, double (alias numeric), integer, logical or date. ISO dates for text input. Applies to retained columns. Legacy numeric openxlsx2 type codes still work for XLSX. Inference is not lossless for arbitrary IDs: declare those character. Parquet floating-to-integer casts are refused until explicitly handled upstream.}
+\item{comment}{Literal prefix of text comment records, e.g. \code{"#"}. Empty disables comments. Uses the optional Polars scanner for prefix-only semantics, not readr's inline-comment truncation. Quoted content is parsed by the backend, not filtered by an R line loop.}
+\item{lazy}{TRUE returns a native Polars LazyFrame for text/Parquet. Schema lookup can read headers or sample records. XLSX rejects TRUE. FALSE returns a tibble.}
+\item{overwrite}{FALSE by default; TRUE backs up and replaces a whole file, not a single worksheet.}
+\item{collect}{Explicit permission to execute a backend query during export. Parquet uses sink_parquet rather than converting the full query result to R. Text/Excel output still materializes.}
+\item{...}{Named backend options: wb_to_df for XLSX import, read_delim for ordinary text, scan_csv for lazy/comment-prefixed text, scan_parquet for Parquet; write_xlsx, write_delim or sink_parquet on export. Unsupported options error. Prefer common arguments above; do not mix types with backend schema options.}
 }
-\value{import returns a tibble. export invisibly returns the output path.}
-\description{Two everyday entry points selected by file extension. Readers and writers are internal implementation choices, not packages users need to choose for each file.}
+\value{import returns a tibble or (lazy=TRUE) a native Polars LazyFrame. export invisibly returns the output path.}
+\description{Two entry points for everyday file I/O with explicit advanced options and no runtime software installation.}
 \details{
-XLSX uses openxlsx2 and the existing formatted writer. Text uses readr with UTF-8
-output, normal quoting for embedded delimiters/quotes/newlines, no automatic whitespace
-trimming and no automatic column-name repair. Parsing problems are errors rather
-than silently accepted missing measurements. Additional readr or openxlsx2 options
-retain their documented meanings; they are not all shared across formats.
+Ordinary text uses readr. Lazy text, prefix comments and Parquet require optional
+polars >=1.16.0,<2.0.0. Important types should be explicit because inference differs
+by backend. Parse errors are errors, possibly deferred until lazy execution.
+Parquet has stored schemas and nulls: sep/comment/na do not apply. Lazy native types
+are preserved. Eager Parquet conversion uses the existing exact-text policy for
+wide integers, Decimal and high-precision temporal columns. Empty strings and empty
+Excel cells can collapse together on readback; do not infer lossless R-type round trips.
 
-Blank strings and empty spreadsheet cells may both read as missing. Delimited files
-do not retain all column types; explicitly protect important identifiers with
-text_cols. A chosen missing token occurring in real data is ambiguous: choose a
-different token and use it consistently. Import is eager and returns in-memory R
-data; advanced out-of-core scans remain available in Polars. No formula evaluation
-or preservation of workbook styling is claimed during import. For spreadsheet
-viewing of formula-like text or identifiers, XLSX is preferable to double-clicking
-CSV in Excel, which may independently reinterpret text.
+New import options are appended after the old positional arguments. Existing
+readr col_types and XLSX numeric types remain available; contradictory declarations
+are errors. Names are selected literally, without interpreting wildcard-like names.
+The single-file API does not promise all historical file schemas/encodings or
+arbitrary reader-option combinations behave identically across backends.
 
-Text output rejects nested/matrix, raw, complex and R integer64 columns unless
-converted explicitly. It does not apply Excel's cell-text or row limits. Polars
-wide integers and temporal values reuse the package's text-preserving conversion.
-The old write_xlsx API and formatting remain available. All outputs reuse the
-single-writer backup/recovery policy; it is not a filesystem transaction.
+Excel formatting and file backup/recovery remain unchanged. The Parquet writer
+uses a temporary file and the same best-effort single-writer final-copy protection.
+Native sinks do not bound memory for all query operators and do not provide a
+concurrent-writer lock. Files used by lazy queries must remain available/stable
+until execution. No compressed-extension routing or remote URL support is implied.
 }
-\seealso{\code{\link{write_xlsx}}, \code{\link[readr:read_delim]{readr::read_delim}},
-\code{\link[openxlsx2:wb_to_df]{openxlsx2::wb_to_df}}}
 \examples{
-x <- data.frame(id = c("001", "002"), value = c(1, NA_real_))
+x <- data.frame(id = c("001", "002"), value = c(1, NA))
 f <- tempfile(fileext = ".csv")
 export(x, f)
-import(f, text_cols = "id")
-unlink(f)
-f <- tempfile(fileext = ".xlsx")
-export(list(var = x, id83 = x), f)
-import(f, sheet = "var")
+import(f, cols = c("id", "value"), types = c(id = "character"))
 unlink(f)
 }

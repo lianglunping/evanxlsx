@@ -1,7 +1,7 @@
 name: R-CMD-check
 on:
   push:
-    branches: [main, 'feature/simple-io']
+    branches: [main, 'feature/lazy-io-0.5.0']
     paths-ignore: ['validation/**']
   pull_request:
   workflow_dispatch:

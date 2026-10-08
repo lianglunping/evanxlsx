@@ -1,32 +1,31 @@
+# evanxlsx 0.5.0
+
+- Keep two IO entry points; add cols, named types, prefix-only comment and lazy import options.
+- Support Parquet import/export using the optional Polars backend; native lazy scans are not fake in-memory frames.
+- Prefix comments intentionally use Polars semantics, not readr inline truncation. XLSX refuses lazy reads.
+- Add only mutate_row_stats() for row-wise replicate means/SD; reuse existing cleaning and column-summary verbs.
+- Reorganize the four-section README: missing/outlier handling first, then row/column summaries and presentation rows.
+- Existing styled Excel export and statistical helpers remain unchanged; new tests cover real file scans.
+
 # evanxlsx 0.4.0
 
-- Add import()/export() for XLSX, TXT, TSV and CSV selected by extension.
-- Keep named-sheet Excel styling and all earlier APIs.
-- Standard text IO dependencies are installed with the package; Polars remains optional.
-- Text exports reuse backup/recovery, with explicit lazy-query permission.
-- Replace the long README with four sections: installation, input, output, processing.
+- Introduce import()/export() for XLSX, TXT, TSV and CSV by extension.
+- Reuse readr/openxlsx2, preserve sheet formatting and file backup/recovery.
+- Readme has four entry sections: installation, input, output, processing.
 
 # evanxlsx 0.3.1
 
-- Preserve public APIs while stabilizing mean and sample SD via binary scaling.
-- Add a complete installed synthetic workflow, with prior tests retained.
+- Binary rescaling for existing mean and SD calculations reduces demonstrated intermediate overflow/underflow.
+- Add an installed complete workflow example, without a new public workflow API.
 
 # evanxlsx 0.3.0
 
-- Add optional summarise_numeric, flag_iqr, separate_strict and assert_unique_keys.
+- Add optional summarise_numeric(), flag_iqr(), separate_strict(), assert_unique_keys().
 
 # evanxlsx 0.2.1
 
-- Fix literal temporal selection, row-name warnings, display defaults and file recovery.
+- Fix literal temporal selection and improve rowname warnings, formatting isolation and file recovery.
 
-# evanxlsx 0.2.0
+# Earlier versions
 
-- Add duckplyr/Polars adapters, explicit collection and installed examples.
-
-# evanxlsx 0.1.1
-
-- Validate cross-platform export and installation.
-
-# evanxlsx 0.1.0
-
-- Initial export candidate.
+Full historical release notes and validation records remain in Git history.

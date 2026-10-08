@@ -1,6 +1,6 @@
 # evanxlsx
 
-**Read with `import()`, write with `export()`. The extension selects the format.**
+One `import()` and one `export()` for XLSX, TXT, TSV, CSV and Parquet. [中文](README.md)
 
 ## 1. Installation
 
@@ -10,42 +10,43 @@ remotes::install_github("lianglunping/evanxlsx", dependencies = NA, upgrade = "a
 library(evanxlsx)
 ```
 
-Required IO dependencies are installed automatically. Private GitHub access requires a local credential; dependency upgrades may occur. The two unified functions require version 0.4.0.
+Private access needs a local credential; `always` may upgrade required dependencies. Install polars separately for Parquet, native lazy queries and line-prefix comments. The optional statistics need rlang/tidyselect; compose Tidy verbs with tidypolars. No installation occurs during data operations.
 
-## 2. Read data
+## 2. Input
 
 ```r
 df <- import("data.xlsx", sheet = "var")
-df_txt <- import("data.txt")
-df_tsv <- import("data.tsv")
-df_csv <- import("data.csv")
-df1 <- import("data.xlsx", sheet = "id83")
+df <- import("data.csv", cols = c("Sample_ID", "rep1"),
+             types = c(Sample_ID = "character", rep1 = "double"))
+df <- import("data.tsv", comment = "#")
+q <- import("data.parquet", lazy = TRUE)
 ```
 
-Every import returns a tibble. XLSX defaults to the first sheet; CSV uses commas, TXT/TSV use tabs. Use `sheet` for a name/index, `sep` for a different delimiter, and `text_cols = "Sample_ID"` to protect identifiers. The default missing marker is blank; literal `"NA"` is retained. Text is UTF-8 with inferred types. Empty strings and missing spreadsheet cells can both read as NA. Text formats do not store complete R type information.
+Ordinary imports return tibbles; native lazy text/Parquet imports return Polars LazyFrames. XLSX rejects lazy=TRUE rather than materializing first. Types: character, double/numeric, integer, logical, date. `text_cols` remains a shortcut for identifiers. Names or positive positions select/reorder columns; XLSX selection is not a sparse-memory guarantee. `comment` uses Polars to skip prefix comment records, without truncating hashes within data fields. Automatic type inference is backend-specific: declare important types. Metadata/schema inference still reads data; lazy does not mean zero I/O. Parquet uses stored nulls and schemas, not textual separators or missing tokens.
 
-## 3. Write data
+## 3. Output
 
 ```r
 export(df, "result.xlsx", sheet = "var")
-export(df, "result.txt")
 export(df, "result.tsv")
 export(df, "result.csv")
+export(df, "result.txt")
+export(df, "result.parquet")
 export(list(var = df, id83 = df1), "WES.xlsx")
-export(df, "styled.xlsx", font = "Arial", font_size = 12, align = "left")
+export(q, "query.parquet", collect = TRUE)
 ```
 
-Excel retains the existing default font, blank missing values, frozen header and three-line borders. All formats refuse overwrite by default. `overwrite = TRUE` backs up and replaces the whole file, not one sheet. `sep` and `na` customize text output. Text files contain one table and no Excel formatting. Lazy Polars/duckplyr input needs `collect = TRUE`. Existing `write_xlsx()` calls still work.
+Styled Excel defaults remain. Every format refuses overwrite unless explicitly permitted and backed up. Overwrite replaces the whole file, not one sheet. Parquet uses a native sink (default zstd), not an intermediate R frame. Query execution still costs I/O and memory; CSV/TSV/XLSX export materializes results.
 
-## 4. Process data
+## 4. Processing
 
-Only this optional section needs Polars, rlang and tidyselect installed separately.
+Clean first using explicit `distinct()`, `replace_na()` or `drop_na()` policies; do not automatically fill missing measurements with zero. `flag_iqr()` marks without deleting observations.
 
 ```r
-summary <- df |> summarise_numeric(c(height, weight), .by = treatment)
-export(summary, "summary.xlsx", collect = TRUE)
-flagged <- df |> flag_iqr(height, .by = treatment)
-parts <- df |> separate_strict(locus, c("Chr", "Position"), sep = ":")
+by_row <- df |> mutate_row_stats(c(rep1, rep2, rep3))
+by_group <- df |> summarise_numeric(c(rep1, rep2, rep3), .by = treatment)
 ```
 
-Helpers return Polars LazyFrames; flags never delete rows. Reuse tidypolars for general reshaping, cleaning and filling. Detailed parameters are in `?import`, `?export` and each helper's help page. With packages exporting the same names, use `evanxlsx::import()` and `evanxlsx::export()` explicitly.
+Row statistics append row_n, row_mean and row_sd and return a LazyFrame. Replicates must have comparable units. Null/NaN are missing; an infinity invalidates that row's mean/SD; sample SD requires two finite values. `na_rm=FALSE` propagates missingness. Prefix collisions are errors, not overwrites. For ordinary tibbles, use `mutate(mean=mean(x), .by=group)` to broadcast column statistics and `bind_rows()` with explicit summary rows for presentation. Such summary rows are not raw observations.
+
+Use tidypolars on lazy inputs for supported filter/mutate/pivot operations, not an automatic arbitrary-R translator. See the Chinese README for fully executed cleaning, broadcasting, appended rows and lazy examples; see version-specific validation for tested limits.
