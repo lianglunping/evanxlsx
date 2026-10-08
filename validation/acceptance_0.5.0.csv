@@ -1,0 +1,7 @@
+environment,R,R_CMD_check,core_assertions,backend_assertions,data_assertions,README_blocks,installations,large_assertions,tidy_recipe_groups
+macos_arm,4.6.1,OK,443,287,394,11,3,NOT_IN_SCOPE,NOT_IN_SCOPE
+macos_intel,4.6.1,OK,443,287,394,11,3,NOT_IN_SCOPE,NOT_IN_SCOPE
+windows,4.6.1,OK,443,287,394,11,3,NOT_IN_SCOPE,NOT_IN_SCOPE
+linux,4.6.1,OK,443,287,394,11,3,37,10
+oldrel,4.5.3,OK,443,287,394,11,3,NOT_IN_SCOPE,NOT_IN_SCOPE
+minimum,4.1.3,1 NOTE,443,NOT_IN_SCOPE,NOT_IN_SCOPE,NOT_IN_SCOPE,3,NOT_IN_SCOPE,NOT_IN_SCOPE
