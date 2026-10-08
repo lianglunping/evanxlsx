@@ -125,6 +125,8 @@ from_second <- openxlsx2::read_xlsx(xlsx_file, sheet = 2) |>
   tibble::as_tibble(.name_repair = "check_unique")
 ```
 
+**回读边界：**本次测试的 openxlsx2 1.29 和 readxl 会把单元格中的空字符串 `""` 与真正空单元格都读为 `NA`，即使写出时二者在XML中仍可区分。文本 `"NA"` 不受影响。需要严格保留空字符串/缺失的区别时，应保留原始RDS/Parquet或明确的文本缺失标记；不要把“XLSX写出正确”等同于任意读取器无损往返。
+
 读多个 sheet 可复用已加载的 `wb`，避免反复加载同一个文件。`as_tibble()` 不保留读取器产生的 Excel 行号行名；真正的基因/样本 ID 应在数据列里。
 
 <!-- example: xlsx_all -->
@@ -341,16 +343,24 @@ evanxlsx::write_xlsx(r_summary, file.path(demo_dir, "dplyr_summary.xlsx"), sheet
 
 <!-- example: data_table -->
 ```r
-dt <- data.table::fread(
-  tsv_file, sep = "\t", encoding = "UTF-8", na.strings = "<MISSING>",
+# fread示例只选择编号、分组与测量列
+measure_cols <- c("Sample_ID", "treatment", "height", "weight")
+dt_measures <- data.table::fread(
+  tsv_file, sep = "\t", select = measure_cols,
+  encoding = "UTF-8", na.strings = "<MISSING>",
   colClasses = c(Sample_ID = "character", treatment = "character",
-                 height = "numeric", weight = "numeric", note = "character"),
+                 height = "numeric", weight = "numeric"),
   strip.white = FALSE
 )
+# 含复杂引号/换行的完整注释表：复用已验收的readr结果
+# as.data.table()转换已有对象，不再次解析文本
+dt <- data.table::as.data.table(from_tsv)
 evanxlsx::write_xlsx(dt, file.path(demo_dir, "fread.xlsx"), sheet = "var")
 data.table::fwrite(dt, file.path(demo_dir, "fwrite.csv"), sep = ",", na = "<MISSING>")
 data.table::fwrite(dt, file.path(demo_dir, "fwrite.tsv"), sep = "\t", na = "<MISSING>")
 ```
+
+**读取器差异：**本次 data.table 1.18.6.1 对测试TSV的内嵌双引号保留为两重引号，未与原始文字一致。因此这里不宣称任意复杂注释经fread无损读取，也不擅自用全局替换修复文字。编号/测量列可按上例选择；需要完整注释时采用readr读取后转data.table。fwrite输出仍独立回读核验。
 
 <!-- example: vroom -->
 ```r
@@ -371,9 +381,11 @@ pl <- polars::pl
 pl_types <- list(Sample_ID = pl$String, treatment = pl$String,
                  height = pl$Float64, weight = pl$Float64, note = pl$String)
 q_csv <- pl$scan_csv(csv_file, schema_overrides = pl_types,
-                    null_values = "<MISSING>", empty_string_is_null = FALSE)
+                    null_values = "<MISSING>", empty_string_is_null = FALSE,
+                    infer_schema_files = 10)
 q_tsv <- pl$scan_csv(tsv_file, separator = "\t", schema_overrides = pl_types,
-                    null_values = "<MISSING>", empty_string_is_null = FALSE)
+                    null_values = "<MISSING>", empty_string_is_null = FALSE,
+                    infer_schema_files = 10)
 p <- q_tsv$collect()  # 本例小表明确执行；不是全流程保持零内存占用
 p$write_csv(file.path(demo_dir, "polars.csv"), null_value = "<MISSING>")
 p$write_csv(file.path(demo_dir, "polars.tsv"), separator = "\t", null_value = "<MISSING>")
@@ -383,7 +395,7 @@ evanxlsx::write_xlsx(list(csv = q_csv, tsv = q_tsv, parquet = q_parquet),
                      file.path(demo_dir, "polars_sources.xlsx"), collect = TRUE)
 ```
 
-CSV扫描用 `null_values`（复数），CSV写出用 `null_value`（单数）。原生Polars方法不是 `write_tsv()`，而是 `write_csv(separator = "\t")`。本例写文本前显式collect；大数据应选择适合的持久化方案，不将本例当作流式XLSX。`q_tsv$explain()` 可查看计划。
+`infer_schema_files = 10` 明确多文件类型推断范围，避免依赖将来版本的默认值；本例单文件且指定全部列类型。CSV扫描用 `null_values`（复数），CSV写出用 `null_value`（单数）。原生Polars方法不是 `write_tsv()`，而是 `write_csv(separator = "\t")`。本例写文本前显式collect；大数据应选择适合的持久化方案，不将本例当作流式XLSX。`q_tsv$explain()` 可查看计划。
 
 ### 6.4 tidypolars + 本包数据函数 → 多sheet
 

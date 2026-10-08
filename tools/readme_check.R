@@ -1,6 +1,5 @@
 #!/usr/bin/env Rscript
-# Execute the actual marked README snippets, then inspect their outputs.
-# Installation and user-path illustrative snippets are parsed but not executed.
+# Execute exact marked README snippets; distinguish writer bytes from reader normalization.
 root <- normalizePath(".", winslash = "/", mustWork = TRUE)
 needed <- c("evanxlsx", "openxlsx2", "tibble", "readr", "readxl", "data.table", "vroom",
             "polars", "duckplyr", "dplyr", "tidyr", "tidypolars", "stringr", "xml2", "testthat")
@@ -67,7 +66,38 @@ same_table <- function(actual, expected) {
     else stopifnot(identical(a, b))
   }
 }
+# Only documented reader semantics normalize empty strings; raw writer XML is checked separately.
+reader_expected <- function(x) {
+  d <- plain(x)
+  for (nm in names(d)) if (is.character(d[[nm]])) {
+    d[[nm]][!is.na(d[[nm]]) & d[[nm]] == ""] <- NA_character_
+  }
+  d
+}
 read_sheet <- function(file, sheet = 1) openxlsx2::read_xlsx(file, sheet = sheet)
+same_sheet <- function(file, sheet, expected) {
+  same_table(read_sheet(file, sheet), reader_expected(expected))
+}
+xml_exact <- function(file, expected, sheet_index = 1L) {
+  ws <- part_xml(file, sprintf("xl/worksheets/sheet%d.xml", sheet_index))
+  nodes <- xml2::xml_find_all(ws, ".//sheetData/row/c")
+  refs <- xml2::xml_attr(nodes, "r")
+  stopifnot(!anyDuplicated(refs), length(xml2::xml_find_all(ws, ".//f")) == 0L)
+  for (j in seq_along(expected)) for (i in 0:nrow(expected)) {
+    ref <- paste0(openxlsx2::int2col(j), i+1L)
+    at <- match(ref, refs); stopifnot(!is.na(at)); cell <- nodes[[at]]
+    value <- if (i == 0L) names(expected)[j] else expected[[j]][i]
+    if (is.na(value)) stopifnot(length(xml2::xml_find_all(cell,"v|is|f")) == 0L)
+    else if (is.character(value)) {
+      stopifnot(xml2::xml_attr(cell,"t") == "inlineStr",
+                identical(enc2utf8(xml2::xml_text(xml2::xml_find_first(cell,"is/t"))),enc2utf8(value)))
+    } else {
+      stopifnot(length(xml2::xml_find_all(cell,"is|f")) == 0L,
+                isTRUE(all.equal(as.numeric(xml2::xml_text(xml2::xml_find_first(cell,"v"))),as.numeric(value),tolerance=1e-12)))
+    }
+  }
+  invisible(TRUE)
+}
 checks <- data.frame(example = names(blocks), state = "NOT_RUN", detail = "")
 extras <- data.frame(check = character(), state = character())
 save_state <- function() write.csv(checks, file.path(out, "examples.csv"), row.names = FALSE)
@@ -82,21 +112,21 @@ verify <- function(id) {
     xlsx_single = {
       f <- file.path(e$demo_dir, "single.xlsx")
       stopifnot(identical(unname(openxlsx2::wb_get_sheet_names(openxlsx2::wb_load(f))), "var"))
-      same_table(read_sheet(f, "var"), e$df)
+      xml_exact(f, e$df); same_sheet(f, "var", e$df)
     },
     xlsx_multi = {
       stopifnot(identical(unname(openxlsx2::wb_get_sheet_names(openxlsx2::wb_load(e$xlsx_file))), c("variant_info", "id83")))
       e$baseline_md5 <- tools::md5sum(e$xlsx_file)
-      same_table(read_sheet(e$xlsx_file, "variant_info"), e$df)
-      same_table(read_sheet(e$xlsx_file, "id83"), e$df1)
+      xml_exact(e$xlsx_file, e$df); same_sheet(e$xlsx_file, "variant_info", e$df)
+      same_sheet(e$xlsx_file, "id83", e$df1)
       ws <- part_xml(e$xlsx_file, "xl/worksheets/sheet1.xml")
       stopifnot(length(xml2::xml_find_all(ws, ".//f")) == 0L,
                 xml2::xml_text(xml2::xml_find_first(ws, ".//c[@r='E9']/is/t")) == "=1+1")
     },
-    xlsx_read = {same_table(e$from_xlsx, e$df); same_table(e$from_second, e$df1)},
+    xlsx_read = {same_table(e$from_xlsx, reader_expected(e$df)); same_table(e$from_second, e$df1)},
     xlsx_all = {
       stopifnot(identical(names(e$all_sheets), c("variant_info", "id83")))
-      same_table(e$all_sheets[[1]], e$df); same_table(e$all_sheets[[2]], e$df1)
+      same_table(e$all_sheets[[1]], reader_expected(e$df)); same_table(e$all_sheets[[2]], e$df1)
     },
     xlsx_range = same_table(e$part, e$df[1:3, 1:3]),
     readxl = {
@@ -107,13 +137,13 @@ verify <- function(id) {
       f <- file.path(e$demo_dir, "WES_added.xlsx")
       stopifnot(identical(unname(openxlsx2::wb_get_sheet_names(openxlsx2::wb_load(f))),
                           c("variant_info", "id83", "extra_summary")))
-      same_table(read_sheet(f, "variant_info"), e$df); same_table(read_sheet(f, "id83"), e$df1)
+      same_sheet(f, "variant_info", e$df); same_table(read_sheet(f, "id83"), e$df1)
       stopifnot(read_sheet(f, "extra_summary")$n_records == 8,
                 identical(tools::md5sum(e$xlsx_file), e$baseline_md5))
     },
     replace_sheet_data = {
       f <- file.path(e$demo_dir, "WES_rebuilt.xlsx")
-      same_table(read_sheet(f, "variant_info"), e$df)
+      xml_exact(f,plain(e$all_sheets[["variant_info"]])); same_sheet(f, "variant_info", e$all_sheets[["variant_info"]])
       same_table(read_sheet(f, "id83"), data.frame(category = "SYN_REVISED", count = 9))
       stopifnot(identical(tools::md5sum(e$xlsx_file), e$baseline_md5))
     },
@@ -121,15 +151,15 @@ verify <- function(id) {
     text_read = {same_table(e$from_csv, e$df); same_table(e$from_tsv, e$df)},
     convert = {
       same_table(readr::read_tsv(file.path(e$demo_dir, "csv_to_tsv.tsv"), col_types = e$col_spec, na = "<MISSING>", trim_ws = FALSE), e$df)
-      same_table(readr::read_csv(file.path(e$demo_dir, "xlsx_to_csv.csv"), col_types = e$col_spec, na = "<MISSING>", trim_ws = FALSE), e$df)
-      same_table(read_sheet(file.path(e$demo_dir, "tsv_to_xlsx.xlsx"), "var"), e$df)
+      same_table(readr::read_csv(file.path(e$demo_dir, "xlsx_to_csv.csv"), col_types = e$col_spec, na = "<MISSING>", trim_ws = FALSE), e$from_xlsx)
+      same_sheet(file.path(e$demo_dir, "tsv_to_xlsx.xlsx"), "var", e$df)
       f <- file.path(e$demo_dir, "utf8_for_excel.csv")
       stopifnot(identical(readBin(f, "raw", n = 3), as.raw(c(239,187,191))))
       same_table(readr::read_csv(f, col_types = e$col_spec, na = "<MISSING>", trim_ws = FALSE), e$df)
     },
     formatting = {
       f <- file.path(e$demo_dir, "formatted.xlsx")
-      same_table(read_sheet(f, "中文 表"), e$df)
+      xml_exact(f,e$df); same_sheet(f, "中文 表", e$df)
       ws <- part_xml(f, "xl/worksheets/sheet1.xml"); ss <- part_xml(f, "xl/styles.xml")
       pane <- xml2::xml_find_first(ws, ".//pane")
       stopifnot(xml2::xml_attr(pane, "xSplit") == "1", xml2::xml_attr(pane, "ySplit") == "1",
@@ -148,19 +178,19 @@ verify <- function(id) {
       same_table(read_sheet(file.path(e$demo_dir, "dplyr_summary.xlsx"), "summary"), ref)
     },
     data_table = {
-      same_table(e$dt, e$df)
-      same_table(read_sheet(file.path(e$demo_dir, "fread.xlsx"), "var"), e$df)
+      same_table(e$dt_measures,e$df[e$measure_cols]); same_table(e$dt, e$df)
+      same_sheet(file.path(e$demo_dir, "fread.xlsx"), "var", e$df)
       same_table(readr::read_csv(file.path(e$demo_dir,"fwrite.csv"), col_types=e$col_spec,na="<MISSING>",trim_ws=FALSE),e$df)
       same_table(readr::read_tsv(file.path(e$demo_dir,"fwrite.tsv"), col_types=e$col_spec,na="<MISSING>",trim_ws=FALSE),e$df)
     },
-    vroom = {same_table(e$from_vroom, e$df); same_table(read_sheet(file.path(e$demo_dir, "vroom.xlsx")), e$df)},
+    vroom = {same_table(e$from_vroom, e$df); same_sheet(file.path(e$demo_dir, "vroom.xlsx"), 1, e$df)},
     polars_io = {
       for (q in list(e$q_csv, e$q_tsv, e$q_parquet)) {
         stopifnot(inherits(q,"polars_lazy_frame")); same_table(as.data.frame(q$collect()), e$df)
       }
       same_table(readr::read_csv(file.path(e$demo_dir,"polars.csv"),col_types=e$col_spec,na="<MISSING>",trim_ws=FALSE),e$df)
       same_table(readr::read_tsv(file.path(e$demo_dir,"polars.tsv"),col_types=e$col_spec,na="<MISSING>",trim_ws=FALSE),e$df)
-      for(s in c("csv","tsv","parquet")) same_table(read_sheet(file.path(e$demo_dir,"polars_sources.xlsx"),s),e$df)
+      for(s in c("csv","tsv","parquet")) same_sheet(file.path(e$demo_dir,"polars_sources.xlsx"),s,e$df)
       writeLines(e$q_tsv$explain(),file.path(out,"csv_scan_plan.txt"))
     },
     tidy_polars = {
@@ -187,7 +217,6 @@ verify <- function(id) {
   )
   invisible(TRUE)
 }
-
 finish <- function() {
   options(old_options)
   if (exists("demo_dir", envir = env, inherits = FALSE) && dir.exists(env$demo_dir)) {
@@ -218,6 +247,14 @@ result <- tryCatch({
     extras <<- rbind(extras,data.frame(check=id,state="PASS"))
     write.csv(extras,file.path(out,"additional_checks.csv"),row.names=FALSE)
   }
+  extra("empty_string_writer_and_reader_are_distinguished", {
+    xml_exact(env$xlsx_file,env$df)
+    stopifnot(identical(env$df$note[4],""),is.na(env$from_xlsx$note[4]),
+              identical(env$from_tsv$note[4],""),identical(env$from_xlsx$note[3],"NA"))
+    write.csv(data.frame(stage=c("source","openxlsx2_read","readr_text_read"),
+                        empty_became_missing=c(FALSE,TRUE,FALSE)),
+              file.path(out,"reader_semantics.csv"),row.names=FALSE)
+  })
   extra("xlsx_missing_sheet", testthat::expect_error(openxlsx2::read_xlsx(env$xlsx_file,sheet="not_a_sheet")))
   extra("xlsx_noncontiguous_rows_columns", {
     d <- openxlsx2::wb_to_df(env$wb,sheet="variant_info",rows=c(1,3,5),cols=c(1,3))
@@ -226,7 +263,7 @@ result <- tryCatch({
   extra("xlsx_offset_header", {
     w <- openxlsx2::wb_workbook(); w$add_worksheet("offset")
     w$add_data("offset",env$df,start_row=3,start_col=2,na=NULL)
-    same_table(openxlsx2::wb_to_df(w,sheet="offset",start_row=3,start_col=2),env$df)
+    same_table(openxlsx2::wb_to_df(w,sheet="offset",start_row=3,start_col=2),reader_expected(env$df))
   })
   extra("readxl_range_and_sheet_index", {
     a <- readxl::read_excel(env$xlsx_file,sheet=1,range="A1:C4",col_types=c("text","text","numeric"))

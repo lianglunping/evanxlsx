@@ -1,52 +1,39 @@
 # evanxlsx
 
-[中文](README.md) · [XLSX and sheets](#xlsx) · [CSV / TSV](#text) · [Parameters](#parameters) · [Integrations](#integration)
+[中文](README.md) · [XLSX](#xlsx) · [CSV / TSV](#text) · [Parameters](#parameters) · [Integrations](#integration)
 
-**Typical use: write two tables into two named sheets of one workbook.**
+Write two frames to two named sheets:
 
 ```r
 evanxlsx::write_xlsx(list(var = df, id83 = df1), "WES.xlsx")
 ```
 
-`evanxlsx` exports workbooks and provides four optional Polars data helpers. It does not define `evanxlsx::read_xlsx()` or `evanxlsx::write_csv()`. Use the established readers/writers below; their argument names differ.
+`evanxlsx` does not define `read_xlsx()` or `write_csv()`. Use openxlsx2/readxl for Excel reads, readr/data.table/vroom for text reads, and R Polars or duckplyr for their respective engines. The package's five public functions are write_xlsx, summarise_numeric, flag_iqr, separate_strict and assert_unique_keys.
 
-| Task | Entry point | Result |
-|---|---|---|
-| Read a named/indexed XLSX sheet | `openxlsx2::read_xlsx(file, sheet)` | data.frame |
-| Read an exact range/types | `openxlsx2::wb_to_df(file, sheet, dims, types)` | data.frame |
-| Read XLS/XLSX into a tibble | `readxl::read_excel(path, sheet, col_types)` | tibble |
-| Create a workbook with named sheets | `evanxlsx::write_xlsx()` | New workbook; protected by default |
-| CSV/TSV with Tidy readers | `readr::read_csv/read_tsv`, `write_csv/write_tsv` | tibble / text file |
-| CSV/TSV with data.table | `data.table::fread/fwrite` | data.table / text file |
-| Lazy CSV/TSV/Parquet | `polars::pl$scan_csv/scan_parquet` | Polars LazyFrame |
-| DuckDB data to Excel | duckplyr + `write_xlsx(collect = TRUE)` | Explicit backend execution |
-
-## Install only the routes you use
+## Installation
 
 ```r
 install.packages("remotes")
 remotes::install_github("lianglunping/evanxlsx", dependencies = NA, upgrade = "always")
 ```
 
-This is a private repository: configure read access locally, never share or commit credentials. NA resolves mandatory dependencies, not all Suggests; always may update resolved dependencies. A pinned package commit does not pin its dependencies. Excel-only use directly requires only openxlsx2. Runtime functions never install software.
+Private access requires locally configured read credentials; never share them. NA installs mandatory dependencies, not every optional package. Always may update resolved dependencies. A pinned commit does not freeze the dependency environment. Local archives can use remotes::install_local(file.choose(), dependencies=NA, upgrade="always"); base install.packages(repos=NULL) does not download dependencies.
 
 ```r
-# Optional file readers and Tidy integration
+# Optional I/O and Tidy packages; install only the routes you need.
 install.packages(c("readr", "readxl", "tibble", "dplyr", "tidyr", "stringr"))
-# Optional alternative readers
 install.packages(c("data.table", "vroom", "duckplyr"))
-# Optional Polars data helpers and Tidy translation
 install.packages(c("rlang", "tidyselect"))
 Sys.setenv(NOT_CRAN = "true")
 install.packages(c("polars", "tidypolars"),
                  repos = c("https://community.r-multiverse.org", "https://cloud.r-project.org"))
 ```
 
-For a local R-built archive, `remotes::install_local(file.choose(), dependencies=NA, upgrade="always")` resolves missing dependencies online. Base `install.packages(..., repos=NULL)` does not download them. Restart R after updating packages already loaded in the session.
+Excel-only use directly requires just openxlsx2. Data helpers also require Polars, rlang and tidyselect. Standard Tidy verbs on Polars require tidypolars and their owning packages. Runtime functions never install software.
 
-## Runnable synthetic fixture
+## Runnable fixture
 
-Run the following sections in order. They use a new temporary directory; substitute your own paths/tables for real work. Values include Chinese/English, leading-zero and long text IDs, missing values, literal NA, empty strings, quotes, delimiters and newlines. Alternative routes are optional, not a requirement to install every package.
+Run the following marked examples in order, in a fresh R session. All outputs use a new temporary directory. Replace the paths/data for actual work. This is deterministic synthetic data with Chinese/English, long and leading-zero IDs, nulls, empty text and embedded delimiters.
 
 <!-- mirror: setup -->
 ```r
@@ -65,11 +52,11 @@ df1 <- data.frame(category = c("SYN_DEL", "SYN_INS"), count = c(3L, 2L))
 ```
 
 <a id="xlsx"></a>
-## XLSX: select sheets for reading and writing
+## XLSX reading and named-sheet writing
 
-### One frame, one named sheet
+### One sheet or several sheets
 
-`sheet` controls a single object's sheet name. For a named list, list names take precedence and `sheet` is ignored.
+`sheet` names a single object's sheet. With a named list, its names control worksheets and `sheet` is ignored.
 
 <!-- mirror: xlsx_single -->
 ```r
@@ -78,8 +65,6 @@ evanxlsx::write_xlsx(
   sheet = "var"
 )
 ```
-
-### Multiple sheets in one new workbook
 
 <!-- mirror: xlsx_multi -->
 ```r
@@ -92,9 +77,9 @@ evanxlsx::write_xlsx(
 )
 ```
 
-List order is sheet order. Invalid or duplicate names cause an error, not silent renaming. Missing cells are value-less; literal NA remains text.
+List order is sheet order. Invalid/duplicate names cause errors, not silent renaming.
 
-### List sheets and read by name/index
+### List and select sheets
 
 <!-- mirror: xlsx_read -->
 ```r
@@ -107,7 +92,9 @@ from_second <- openxlsx2::read_xlsx(xlsx_file, sheet = 2) |>
   tibble::as_tibble(.name_repair = "check_unique")
 ```
 
-Prefer names when sheet order could change. A tibble discards reader-generated row-number rownames; meaningful gene/sample identifiers should already be explicit columns. Reuse `wb` to read multiple sheets without repeatedly loading the file:
+Prefer sheet names when order can change. The tested openxlsx2 1.29 and readxl readers collapse empty-string cells and value-less cells to NA, even though the writer preserves the distinction in XML. Literal NA stays text. Retain source RDS/Parquet or use a documented text sentinel when empty strings and missingness must remain distinct. Forcing character cannot restore zeros or precision already lost upstream.
+
+Reuse a loaded workbook to read all sheets:
 
 <!-- mirror: xlsx_all -->
 ```r
@@ -117,7 +104,7 @@ all_sheets <- setNames(lapply(sheet_names, function(s) {
 }), sheet_names)
 ```
 
-### Exact ranges and column types
+### Exact regions and types
 
 <!-- mirror: xlsx_range -->
 ```r
@@ -129,21 +116,21 @@ part <- openxlsx2::wb_to_df(
 ) |> tibble::as_tibble(.name_repair = "check_unique")
 ```
 
-| Reader parameter | Meaning |
+| Parameter | Meaning |
 |---|---|
-| `sheet` | Name or 1-based sheet index |
-| `dims` | Exact Excel coordinates; this range contains one header and three data rows |
-| `start_row/start_col` | Starting point for data discovery, not an exact range |
-| `rows/cols` | Spreadsheet row/column indices; include the intended header |
-| `col_names` | First selected row is the header when TRUE |
-| `types` | wb_to_df named types: 0 character, 1 numeric, 2 Date, 3 datetime, 4 logical |
-| `na` | Additional values interpreted as missing; do not accidentally remove valid literal NA |
-| `skip_empty_rows/cols` | TRUE drops entirely empty rows/columns and changes shape |
-| `detect_dates` | Recognize date styles; it does not recover corrupted IDs |
+| sheet | Name or 1-based index |
+| dims | Exact Excel range; A1:C4 includes one header and three data rows |
+| start_row/start_col | Discovery start, not an exact rectangular range |
+| rows/cols | Spreadsheet indices, including the desired header row |
+| col_names | Interpret first selected row as names |
+| types | wb_to_df type codes: 0 character, 1 numeric, 2 Date, 3 datetime, 4 logical |
+| na | Additional values treated as missing; do not remove valid NA text |
+| skip_empty_rows/cols | TRUE removes wholly empty rows/columns and changes shape |
+| detect_dates | Interpret date styles; does not repair identifiers |
 
-Blank cells remain missing even with `na=character()`. Forcing character cannot reconstruct precision/zeros already lost upstream. Reading data does not retain all workbook styles, formulas, macros or objects. The reader is not a formula calculation engine.
+The reader is not a formula engine. Reading values cannot preserve every formula, style, macro or other workbook object. Blank cells remain missing with na=character(). as_tibble removes reader-generated rownames, so meaningful IDs should be explicit data columns.
 
-### Alternative: readxl directly returns a tibble
+### Alternative reader: readxl returns a tibble
 
 <!-- mirror: readxl -->
 ```r
@@ -155,11 +142,11 @@ from_readxl <- readxl::read_excel(
 )
 ```
 
-Here types are positional and use `col_types`, not openxlsx2's `types`. `range="A1:C4"` selects a region; `skip=2` skips introductory rows when no exact range is used. readxl can collapse empty strings and blank cells into missing values; no lossless distinction is claimed. `trim_ws=FALSE` preserves whitespace. readxl reads but does not write workbooks.
+readxl reads both XLS and XLSX but does not write them. Its types are positional and use col_types, not openxlsx2's types. range="A1:C4" selects an exact region; skip=2 skips introductory rows when no range is supplied. trim_ws=FALSE preserves whitespace. Empty strings can become missing, as above.
 
-### Creating a sheet is not updating an existing workbook
+### Appending to a copy versus replacing the entire workbook
 
-`overwrite=TRUE` replaces the **entire workbook**, after making a backup. It is not an append/replace-one-sheet mode. To append a new sheet to a simple existing workbook, load it using openxlsx2, add the sheet and save to a different path. The new sheet below uses ordinary openxlsx2 formatting, not automatic evanxlsx formatting.
+`overwrite=TRUE` replaces the **whole file** after a backup; it is not an append/replace-one-sheet mode. For adding a sheet, use openxlsx2 and save to a different file. Its new sheet below does not automatically receive evanxlsx's style.
 
 <!-- mirror: append_sheet -->
 ```r
@@ -173,7 +160,7 @@ wb_more$save(file.path(demo_dir, "WES_added.xlsx"), overwrite = FALSE)
 stopifnot(identical(tools::md5sum(xlsx_file), original_md5))
 ```
 
-For a **data-only reconstruction**, replacing one list element and writing a new workbook is explicit and simple. It does not preserve original formulas/styles/objects and is inappropriate for complex workbook templates:
+For **data-only reconstruction**, replace a list element and write to a new path. This discards original formatting/formula structures and is not appropriate for complex templates:
 
 <!-- mirror: replace_sheet_data -->
 ```r
@@ -183,9 +170,9 @@ evanxlsx::write_xlsx(replacement, file.path(demo_dir, "WES_rebuilt.xlsx"))
 ```
 
 <a id="text"></a>
-## CSV / TSV read, write and conversion
+## CSV / TSV reading, writing and conversion
 
-Text files have no sheets or cell formatting. The sentinel `<MISSING>` in this fixture distinguishes missing values from empty strings and literal NA. Choose a sentinel absent from real nonmissing values; specify column types on import.
+Text files have no sheets, fonts or complete type metadata. This fixture uses a sentinel absent from valid values to distinguish NA from empty text and literal NA; choose and validate your convention before import/export.
 
 <!-- mirror: text_write -->
 ```r
@@ -200,7 +187,7 @@ readr::write_csv(df, csv_file, na = "<MISSING>")
 readr::write_tsv(df, tsv_file, na = "<MISSING>", quote = "needed")
 ```
 
-`quote="needed"` is deliberate for TSV: text may contain tabs/newlines/quotes. Unquoted output can break field boundaries. Readers outside R must support the same quoting protocol; do not silently change the original text to suit a reader.
+quote="needed" is deliberate: annotations contain tabs, quotes and newlines. Unquoted TSV may break record boundaries; other tools need compatible quoting or a separately specified exchange protocol.
 
 <!-- mirror: text_read -->
 ```r
@@ -216,7 +203,7 @@ stopifnot(nrow(readr::problems(from_csv)) == 0L,
           nrow(readr::problems(from_tsv)) == 0L)
 ```
 
-`col_select=c(Sample_ID,height)` selects columns; `skip` skips introductory rows; `n_max` limits a preview, not a complete dataset. `show_col_types=FALSE` only hides a message. `locale` must match the real encoding. Writers' `append=FALSE` overwrites an existing text file; it is not a safety guard. Use a new path or check it first.
+col_types protects IDs; locale must match the real encoding. col_select selects columns, skip skips lines, and n_max is a preview limit, not a full dataset. show_col_types=FALSE only hides a message. Writers' append=FALSE can overwrite an existing file; it is not a safety guard. Use fresh paths.
 
 <!-- mirror: convert -->
 ```r
@@ -227,37 +214,37 @@ evanxlsx::write_xlsx(from_tsv, file.path(demo_dir, "tsv_to_xlsx.xlsx"), sheet = 
 readr::write_excel_csv(df, file.path(demo_dir, "utf8_for_excel.csv"), na = "<MISSING>")
 ```
 
-`write_excel_csv()` is still CSV, with UTF-8 BOM. It does not provide worksheets or prevent Excel ID/date conversion or formula interpretation. Prefer XLSX when exact text IDs and explicit cell types matter. Renaming an extension is not format conversion.
+write_excel_csv produces CSV with a UTF-8 BOM, not an XLSX workbook. It cannot prevent Excel's type conversion or formula interpretation when double-clicked. Prefer typed XLSX for identifiers and potentially formula-like text. Changing a filename extension is not conversion.
 
 <a id="parameters"></a>
-## Exporter parameters
+## Export parameters
 
 | Parameter | Default | Meaning |
 |---|---|---|
-| `x`, `file` | Required | Supported frame or named list; .xlsx destination |
-| `sheet` | Sheet1 | Name for a single object; list names control multiple sheets |
-| `font`, `font_size` | Times New Roman, 11 | Uniform font and pt size; fonts are not installed |
-| `align` | center | Body center/left/right/justify |
-| `header_align` | center | Independent header alignment |
-| `valign` | center | center/top/bottom |
-| `wrap` | TRUE | Wrapping, not guaranteed row autofit |
-| `widths` | auto | Automatic, one fixed width, or a per-column vector |
-| `max_width` | 40 | Automatic-width cap; ignored for numeric widths |
-| `freeze`, `freeze_first_col` | TRUE, FALSE | First row and optional first column |
-| `filter` | FALSE | Column filtering; not on header-only sheets |
-| `three_line`, `grid_lines` | TRUE, FALSE | Three-line rules and screen grid visibility |
-| `overwrite` | FALSE | Explicit whole-workbook replacement with backup |
-| `collect` | FALSE | Permit pending backend execution |
-| `max_rows` | 1048575L | Per-sheet returned data rows, excluding header; not a memory budget |
+| x, file | Required | Frame or named list; .xlsx destination in an existing directory |
+| sheet | Sheet1 | Single-object sheet name; list names control multiple sheets |
+| font, font_size | Times New Roman, 11 | Uniform font and pt size; font files not installed |
+| align | center | Data center/left/right/justify |
+| header_align | center | Independent header alignment |
+| valign | center | center/top/bottom |
+| wrap | TRUE | Wrap text, not guaranteed row autofit |
+| widths | auto | Automatic, one width, or per-column widths matching every sheet |
+| max_width | 40 | Automatic-width cap, ignored for numeric widths |
+| freeze, freeze_first_col | TRUE, FALSE | Freeze row and optional first column |
+| filter | FALSE | Header filtering, omitted for header-only sheets |
+| three_line, grid_lines | TRUE, FALSE | Table rules and on-screen grid visibility |
+| overwrite | FALSE | Explicit whole-file replacement with backup |
+| collect | FALSE | Permission to execute backend queries |
+| max_rows | 1048575L | Per-sheet data-row cap excluding header; not an engine memory budget |
 
-Font, size and body alignment can also be set via `evanxlsx.font`, `evanxlsx.font_size`, `evanxlsx.align` options. Explicit arguments win. Recovery is best-effort, not a concurrent-writer transaction.
+Defaults can use evanxlsx.font/font_size/align options; explicit arguments take precedence. Reader parameters are not interchangeable with writer formatting parameters. File recovery is best-effort, not a concurrent transaction.
 
 <a id="integration"></a>
-## Integrating other packages
+## Integrations
 
-### readr / dplyr
+### Ordinary readr/tibble/dplyr
 
-Ordinary tibbles still execute in R. Loading tidypolars alone does not move ordinary frames into Polars.
+Ordinary dataframes still calculate in R. Loading tidypolars alone does not switch their engine.
 
 <!-- mirror: dplyr -->
 ```r
@@ -271,11 +258,11 @@ r_summary <- from_tsv |>
 evanxlsx::write_xlsx(r_summary, file.path(demo_dir, "dplyr_summary.xlsx"), sheet = "summary")
 ```
 
-### data.table and vroom
+### data.table/vroom
 
-`fread()` uses `colClasses` and `na.strings`; `fwrite()` uses `sep`. These are not readr parameter names. See the Chinese README's fully executed [alternative reader recipes](README.md#integration) for fread/fwrite and vroom exports. Their data.frames/tibbles pass directly to `evanxlsx::write_xlsx()` without conversion to Polars.
+The [Chinese README's executed examples](README.md#integration) provide fread/fwrite and vroom routes. fread uses colClasses/na.strings, not readr argument names. In data.table 1.18.6.1 our quoted TSV annotation probe retained doubled embedded quotes. Its demonstrated fread route therefore selects IDs/measurements; the full annotated table uses readr followed by as.data.table(), without guessed text repair. fwrite outputs are separately checked. vroom returns a tibble that the exporter accepts directly.
 
-### R Polars: scan, write CSV/TSV, Parquet, then Excel
+### Polars scans and writes
 
 <!-- mirror: polars_io -->
 ```r
@@ -283,9 +270,11 @@ pl <- polars::pl
 pl_types <- list(Sample_ID = pl$String, treatment = pl$String,
                  height = pl$Float64, weight = pl$Float64, note = pl$String)
 q_csv <- pl$scan_csv(csv_file, schema_overrides = pl_types,
-                    null_values = "<MISSING>", empty_string_is_null = FALSE)
+                    null_values = "<MISSING>", empty_string_is_null = FALSE,
+                    infer_schema_files = 10)
 q_tsv <- pl$scan_csv(tsv_file, separator = "\t", schema_overrides = pl_types,
-                    null_values = "<MISSING>", empty_string_is_null = FALSE)
+                    null_values = "<MISSING>", empty_string_is_null = FALSE,
+                    infer_schema_files = 10)
 p <- q_tsv$collect()  # 本例小表明确执行；不是全流程保持零内存占用
 p$write_csv(file.path(demo_dir, "polars.csv"), null_value = "<MISSING>")
 p$write_csv(file.path(demo_dir, "polars.tsv"), separator = "\t", null_value = "<MISSING>")
@@ -295,24 +284,22 @@ evanxlsx::write_xlsx(list(csv = q_csv, tsv = q_tsv, parquet = q_parquet),
                      file.path(demo_dir, "polars_sources.xlsx"), collect = TRUE)
 ```
 
-Reader `null_values` is plural; writer `null_value` is singular. TSV uses `write_csv(separator="\t")`, not a made-up native write_tsv method. The small fixture is explicitly collected for text output; this is not a streaming-XLSX claim. `q_tsv$explain()` records the plan.
+R Polars uses separator for TSV, null_values for reading and singular null_value for writing. infer_schema_files=10 avoids relying on a changing default. This one-file fixture declares every column type. Text output explicitly collects a small table; it is not streaming-XLSX. q_tsv$explain() displays the native plan.
 
-### tidypolars and data helpers
+### tidypolars and optional data helpers
 
-Load tidypolars to register supported Tidy methods; set unknown arguments to error and disable hidden R fallback. The Chinese README's [executed integration](README.md#integration) demonstrates summarise_numeric, pivot_longer, key validation, pivot_wider, explicit annotation cleaning and multi-sheet output. Dynamic pivoting can execute before the final collection. Only annotation missingness is filled; measurements are not replaced by zero.
+Load tidypolars to register its Tidy methods; unknown arguments should error, with no hidden R fallback. The [executed Chinese workflow](README.md#integration) includes summaries, pivot_longer, key checking, pivot_wider and annotation trimming/NA replacement. It does not fill measurement values. Dynamic pivoting may execute early.
 
-| Helper | Main arguments | Contract |
-|---|---|---|
-| summarise_numeric | .cols, .by=NULL, na_rm=TRUE | Counts plus mean/median/sample SD/type-7 quartiles |
-| flag_iqr | .col, .by, k=1.5, min_n=4L, prefix | Annotate; never delete rows or infer unclassified cases are normal |
-| separate_strict | col, into, sep, remove=FALSE, collect=FALSE | Literal separator, exact field count, leading zeros retained |
-| assert_unique_keys | .cols, allow_missing=FALSE, collect=FALSE | Duplicate/missing keys cause errors, no guessed aggregation |
+| Helper | Important arguments and limits |
+|---|---|
+| summarise_numeric | .cols/.by/na_rm; counts plus mean, median, sample SD, linear quartiles |
+| flag_iqr | One .col; k=1.5/min_n=4L/prefix; flags and reasons, never deletes rows |
+| separate_strict | col/into/sep/remove; literal separator, exact fields and text IDs |
+| assert_unique_keys | .cols/allow_missing; rejects duplicates, no guessed pivot aggregation |
 
-All return Polars LazyFrames. Existing grouped/rowwise input must be ungrouped before explicit .by. Lazy guards execute validation with permission. where() predicates are not supported. See `?evanxlsx::summarise_numeric` for numerical/missing/infinite-value rules.
+All return Polars LazyFrames. Ungroup existing grouped/rowwise input before using .by. Lazy guards need explicit validation permission. where() predicates are unsupported. See R help for complete missing/infinite/numeric rules.
 
-### duckplyr
-
-Duckplyr uses DuckDB, not Polars. Its CSV reader also accepts TSV through DuckDB options. Type declarations must follow the reader's nested-list interface.
+### duckplyr uses DuckDB, not Polars
 
 <!-- mirror: duckplyr -->
 ```r
@@ -334,12 +321,12 @@ readr::write_csv(duck_small, file.path(demo_dir, "duckplyr_summary.csv"))
 readr::write_tsv(duck_small, file.path(demo_dir, "duckplyr_summary.tsv"), quote = "needed")
 ```
 
-The exporter accepts duckplyr directly with permission. The optional Polars data helpers instead require an explicit upstream collection/conversion. Collecting a small summary here is not a recommendation to collect a huge raw query.
+The nested types list follows duckplyr's interface. Explicit collection of a small summary is not a recommendation to load a huge raw query. The exporter accepts duckplyr directly with permission, while the Polars data helpers require an explicit upstream conversion.
 
-## Validation and documentation scope
+## Tests, help and sources
 
-This revision changes documentation/tests only; package runtime and version remain 0.3.1. Marked Chinese README code is executed directly; mirrored English code is byte-compared with it. Installation commands and user-input illustrations are parsed but not automatically executed. See [documentation acceptance](validation/README_IO_20261008.md) and [runtime acceptance](validation/STATUS_0.3.1.md).
+This is a documentation-only revision: runtime, public APIs, version 0.3.1 and dependencies are unchanged. Tests execute tagged Chinese README code directly and compare mirrored English snippets. Install commands and user-input illustrations are parsed, not executed automatically. Reader-specific behavior is explicitly checked separately from exact workbook XML. See [README acceptance](validation/README_IO_20261008.md) and [runtime acceptance](validation/STATUS_0.3.1.md).
 
-GitHub shows repository HTML files as source, not a running website. Download an HTML guide or use `utils::browseURL(system.file("guide","usage.html",package="evanxlsx"))` after installation. For the existing complete installed workflow, source `system.file("examples","workflow.R",package="evanxlsx")` with UTF-8, then call `evanxlsx_workflow()`; it is an example, not an exported API.
+GitHub displays repository HTML as source. Download it to a browser or use utils::browseURL(system.file("guide","usage.html",package="evanxlsx")) after installation. The installed workflow.R example can be sourced and called as evanxlsx_workflow(); it is not a new exported API.
 
-Primary documentation: [openxlsx2](https://janmarvin.github.io/openxlsx2/reference/wb_to_df.html), [readxl](https://readxl.tidyverse.org/reference/read_excel.html), [readr](https://readr.tidyverse.org/reference/read_delim.html), [Polars scan](https://pola-rs.github.io/r-polars/man/pl__scan_csv.html), [duckplyr](https://duckplyr.tidyverse.org/reference/read_csv_duckdb.html).
+Primary sources: [openxlsx2](https://janmarvin.github.io/openxlsx2/reference/wb_to_df.html), [readxl](https://readxl.tidyverse.org/reference/read_excel.html), [readr](https://readr.tidyverse.org/reference/read_delim.html), [Polars scan](https://pola-rs.github.io/r-polars/man/pl__scan_csv.html), [duckplyr](https://duckplyr.tidyverse.org/reference/read_csv_duckdb.html).
