@@ -1,17 +1,21 @@
 io_df <- function(x) as.data.frame(x$collect())
 
-test_that("prefix comments do not eat hashes in fields or quoted multiline strings", {
-  f <- tempfile(fileext=".tsv")
-  writeLines(c('# metadata', 'id\tx\tnote', '001\t1.5\tgene#tag',
-    '# skip this line', '002\t2.5\t"line one', '# inside quoted field"'),f,useBytes=TRUE)
-  for (lazy in c(FALSE,TRUE)) {
-    q <- import(f, comment="#", types=c(id="character",x="double"), lazy=lazy)
-    y <- if (lazy) io_df(q) else as.data.frame(q)
-    expect_identical(y$id,c("001","002"))
-    expect_equal(y$x,c(1.5,2.5))
-    expect_identical(y$note,c("gene#tag","line one\n# inside quoted field"))
+test_that("prefix comments preserve literal LF/CRLF inside quoted fields", {
+  # Write exact bytes, rather than platform-dependent writeLines() output.
+  for (eol in c("\n", "\r\n")) {
+    f <- tempfile(fileext=".tsv")
+    lines <- c('# metadata', 'id\tx\tnote', '001\t1.5\tgene#tag',
+      '# skip this line', '002\t2.5\t"line one', '# inside quoted field"')
+    writeBin(charToRaw(paste0(paste(lines, collapse=eol), eol)), f)
+    for (lazy in c(FALSE,TRUE)) {
+      q <- import(f, comment="#", types=c(id="character",x="double"), lazy=lazy)
+      y <- if (lazy) io_df(q) else as.data.frame(q)
+      expect_identical(y$id,c("001","002"))
+      expect_equal(y$x,c(1.5,2.5))
+      expect_identical(y$note,c("gene#tag",paste0("line one",eol,"# inside quoted field")))
+    }
+    expect_identical(import(f,comment="#",cols=c("x","id"),types=c(id="character"))$id,c("001","002"))
   }
-  expect_identical(import(f,comment="#",cols=c("x","id"),types=c(id="character"))$id,c("001","002"))
 })
 
 test_that("lazy text and parquet keep selection and types in a real file query", {
