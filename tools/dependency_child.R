@@ -50,6 +50,11 @@ for (kind in c("polars_data_frame", "duckplyr_df")) {
   stopifnot(inherits(err, "error"), grepl("Optional backend requires", conditionMessage(err)))
 }
 stopifnot(!requireNamespace("duckplyr", quietly = TRUE), !requireNamespace("polars", quietly = TRUE))
+# Unified IO dependencies must also be resolved by the installer.
+stopifnot(requireNamespace("readr", quietly = TRUE), requireNamespace("tibble", quietly = TRUE))
+text_file <- file.path(cfg$out, paste0("export_", method, ".csv"))
+evanxlsx::export(x, text_file)
+stopifnot(identical(evanxlsx::import(text_file, text_cols = "id")$id, x$id))
 cat("PASS: required dependencies resolved; optional absence produces installation hints only; export verified\n")
 writeLines(c(capture.output(sessionInfo()), paste("openxlsx2:", packageVersion("openxlsx2")),
              paste("evanxlsx:", packageVersion("evanxlsx"))), file.path(cfg$out, paste0(method, "_session.txt")))

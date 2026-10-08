@@ -1,7 +1,7 @@
-.commit_file <- function(tmp, file, overwrite) {
+.commit_file <- function(tmp, file, overwrite, label = "workbook") {
   # Single-writer recovery, not a filesystem transaction or a concurrent-writer lock.
   fail <- function(message) {
-    stop(paste0(message, " Complete new workbook retained at: ",
+    stop(paste0(message, " Complete new ", label, " retained at: ",
                 normalizePath(tmp, winslash = "/", mustWork = TRUE)), call. = FALSE)
   }
   copy <- function(from, to, replace) {

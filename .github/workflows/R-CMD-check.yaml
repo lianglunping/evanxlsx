@@ -1,7 +1,7 @@
 name: R-CMD-check
 on:
   push:
-    branches: [main, 'feature/0.3.1-workflow']
+    branches: [main, 'feature/simple-io']
     paths-ignore: ['validation/**']
   pull_request:
   workflow_dispatch:
@@ -45,7 +45,7 @@ jobs:
           repos <- getOption('repos')
           if (nzchar(Sys.getenv('RSPM'))) repos <- c(RSPM = Sys.getenv('RSPM'))
           options(repos = c(repos, multiverse = 'https://community.r-multiverse.org'))
-          core <- c('openxlsx2', 'testthat', 'xml2', 'tibble', 'remotes')
+          core <- c('openxlsx2', 'readr', 'testthat', 'xml2', 'tibble', 'remotes')
           optional <- c('duckplyr', 'polars', 'tidypolars', 'tidyselect', 'rlang', 'tidyr', 'stringr')
           packages <- if (Sys.getenv('EVANXLSX_BACKEND_TEST') == 'true') c(core, optional) else core
           install.packages(packages, Ncpus = 2)
@@ -69,6 +69,9 @@ jobs:
       - name: Optional data module with R reference comparisons
         if: matrix.backend
         run: Rscript tools/data_check.R
+      - name: Simple README examples
+        if: matrix.backend
+        run: Rscript --vanilla tools/readme_check.R
       - name: Existing larger exports
         if: matrix.name == 'linux-release'
         run: Rscript tools/integration_check.R --large
@@ -91,6 +94,7 @@ jobs:
             validation/portable-*/
             validation/integration-*/
             validation/data-*/
+            validation/quickstart-*/
             validation/large-*/
             validation/tidy-qualification/
             validation/source/
