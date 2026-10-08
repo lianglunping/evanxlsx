@@ -51,7 +51,8 @@ test_that("delimiters, missing tokens and non-destructive defaults are explicit"
   f <- tempfile(fileext = ".csv")
   export(data.frame(note = c("", NA_character_, "NA"), v = c(1, 2, 3)), f)
   expect_identical(import(f)$note, c(NA_character_, NA_character_, "NA"))
-  expect_identical(import(f, na = c("", "NA"))$note, rep(NA_character_, 3))
+  expect_true(all(is.na(import(f, na = c("", "NA"))$note)))
+  expect_identical(import(f, na = c("", "NA"), text_cols = "note")$note, rep(NA_character_, 3))
   for (ext in c("txt", "csv", "xlsx")) {
     g <- tempfile(fileext = paste0(".", ext))
     export(x, g)
@@ -72,7 +73,7 @@ test_that("bad formats, bad arguments and invalid input are rejected", {
   expect_error(import(tempfile(fileext = ".csv")), "does not exist")
   f <- tempfile(fileext = ".csv"); export(x, f)
   expect_error(import(f, sheet = "var"), "only for XLSX")
-  expect_error(import(f, text_cols = "not_found"))
+  expect_warning(expect_error(import(f, text_cols = "not_found")), "named parsers")
   expect_error(import(f, text_cols = NA), "text_cols")
   expect_error(import(f, sep = "::"), "delimiter")
   expect_error(export(x, tempfile(fileext = ".csv"), sheet = "var"), "only for XLSX")
